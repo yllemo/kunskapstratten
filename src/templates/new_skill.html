@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Skapa skill – Kunskapstratten{% endblock %}
+{% block content %}
+<section class="form-page">
+  <a class="back-link" href="{{ url_for('skills_page') }}">← Skills</a>
+  <div class="page-heading">
+    <div>
+      <h1>Skapa egen skill</h1>
+      <p>Beskriv en återanvändbar bearbetningsfunktion. Dokumenten väljs när skillen körs.</p>
+    </div>
+  </div>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" class="skill-form">
+    <div class="form-fields">
+      <label class="field-label">Namn
+        <input name="name" required value="{{ form.get('name', '') if form else '' }}" placeholder="Exempel: Projektplaneraren">
+      </label>
+      <label class="field-label">Kort beskrivning
+        <textarea name="description" required rows="3" placeholder="När och varför ska en agent använda denna skill?">{{ form.get('description', '') if form else '' }}</textarea>
+      </label>
+      <label class="field-label">Instruktioner
+        <textarea name="instructions" rows="8" placeholder="Beskriv hur agenten ska arbeta med underlaget…">{{ form.get('instructions', '') if form else '' }}</textarea>
+      </label>
+    </div>
+    <div class="edit-actions">
+      <button class="btn-primary" type="submit">Skapa skill</button>
+      <a class="btn-secondary" href="{{ url_for('skills_page') }}">Avbryt</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

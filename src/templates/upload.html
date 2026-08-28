@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Ladda upp dokument – Kunskapstratten{% endblock %}
+{% block content %}
+<section class="form-page">
+  <div class="page-heading">
+    <div>
+      <h1>Ladda upp till inbox</h1>
+      <p>Filerna placeras i inboxen och bearbetas när du klickar på <strong>Uppdatera</strong>.</p>
+    </div>
+  </div>
+
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  {% if saved %}
+  <div class="result-panel success" role="status">
+    <strong>{{ saved|length }} filer uppladdade</strong>
+    <ul>{% for path in saved %}<li><code>{{ path }}</code></li>{% endfor %}</ul>
+    <button id="processUploaded" type="button" class="btn-primary">Bearbeta nu</button>
+  </div>
+  {% endif %}
+  {% if rejected %}
+  <div class="result-panel warning">
+    <strong>Filer som hoppades över</strong>
+    <ul>{% for message in rejected %}<li>{{ message }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="upload-form">
+    <label id="dropZone" class="drop-zone">
+      <input id="fileInput" type="file" name="files" multiple required accept="{{ supported|join(',') }}">
+      <span class="drop-icon" aria-hidden="true">⇧</span>
+      <strong>Dra filer hit eller välj från datorn</strong>
+      <span id="fileSummary">Flera filer kan väljas samtidigt</span>
+    </label>
+    <label class="field-label">Undermapp i inboxen
+      <input name="folder" placeholder="exempel/projekt (valfritt)">
+    </label>
+    <details class="supported-types">
+      <summary>Filtyper som stöds</summary>
+      <div>{% for extension in supported %}<code>{{ extension }}</code>{% endfor %}</div>
+    </details>
+    <button class="btn-primary" type="submit">Ladda upp filer</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById("fileInput");
+  const zone = document.getElementById("dropZone");
+  const summary = document.getElementById("fileSummary");
+  input.addEventListener("change", () => {
+    summary.textContent = input.files.length === 1 ? input.files[0].name : `${input.files.length} filer valda`;
+    zone.classList.toggle("has-files", input.files.length > 0);
+  });
+  ["dragenter", "dragover"].forEach(name => zone.addEventListener(name, () => zone.classList.add("is-dragging")));
+  ["dragleave", "drop"].forEach(name => zone.addEventListener(name, () => zone.classList.remove("is-dragging")));
+
+  const process = document.getElementById("processUploaded");
+  if (process) process.addEventListener("click", async () => {
+    process.disabled = true;
+    process.textContent = "Bearbetar…";
+    try {
+      const data = await postJSON("/api/reindex", {});
+      window.location.href = {{ url_for('browse') | tojson }};
+    } catch (error) {
+      showToast("Kunde inte bearbeta: " + error.message);
+      process.disabled = false;
+      process.textContent = "Bearbeta nu";
+    }
+  });
+})();
+</script>
+{% endblock %}

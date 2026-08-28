@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Redigera skill – {{ relpath }}{% endblock %}
+{% block content %}
+<section class="edit-view">
+  <a class="back-link" href="{{ url_for('skills_page') }}">← Tillbaka till skills</a>
+  <h1 class="edit-title">Redigerar <code>skills/{{ relpath }}</code></h1>
+  <p class="empty-hint">Detta är en bearbetningsskill. Dokument väljs först när skillen körs.</p>
+  <p class="empty-hint">Frontmatter måste innehålla <code>name</code> och <code>description</code>. Monaco används på desktop och en lättare textruta på mobil.</p>
+  <div id="monacoEditor" class="monaco-host" aria-label="SKILL.md-redigerare"></div>
+  <textarea id="editArea" class="edit-textarea editor-fallback" spellcheck="false">{{ raw }}</textarea>
+  <div class="edit-actions">
+    <button type="button" class="btn-primary" id="saveSkillBtn">Spara</button>
+    <a class="btn-secondary" href="{{ url_for('skills_page') }}">Avbryt</a>
+    <span id="saveStatus" class="save-status"></span>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs/loader.js"></script>
+<script>
+(function () {
+  const btn = document.getElementById("saveSkillBtn");
+  const status = document.getElementById("saveStatus");
+  const area = document.getElementById("editArea");
+  const saveUrl = {{ url_for('save_skill', relpath=relpath) | tojson }};
+  const skillsUrl = {{ url_for('skills_page') | tojson }};
+  let editor = null;
+
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "vs-dark" : "vs";
+  }
+  if (window.require && !window.matchMedia("(max-width: 760px)").matches) {
+    window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs" } });
+    window.require(["vs/editor/editor.main"], function () {
+      editor = monaco.editor.create(document.getElementById("monacoEditor"), {
+        value: area.value, language: "markdown", theme: currentTheme(), automaticLayout: true,
+        wordWrap: "on", minimap: { enabled: window.innerWidth >= 1100 }, fontSize: 14,
+        lineHeight: 22, padding: { top: 14, bottom: 14 }, scrollBeyondLastLine: false, tabSize: 2
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => btn.click());
+      document.getElementById("monacoEditor").classList.add("is-ready");
+      area.classList.add("is-hidden");
+    });
+  }
+  new MutationObserver(() => {
+    if (editor) monaco.editor.setTheme(currentTheme());
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    status.textContent = "Sparar…";
+    status.className = "save-status";
+    try {
+      const response = await fetch(saveUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editor ? editor.getValue() : area.value })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Något gick fel");
+      status.textContent = "Sparat.";
+      status.className = "save-status ok";
+      setTimeout(() => { window.location.href = skillsUrl; }, 500);
+    } catch (error) {
+      status.textContent = "Fel: " + error.message;
+      status.className = "save-status err";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

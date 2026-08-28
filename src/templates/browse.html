@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Bläddra – Kunskapstratten{% endblock %}
+{% block content %}
+<section class="index-toolbar">
+  <form method="get" class="search-form" action="{{ url_for('browse') }}">
+    {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
+    <input type="text" name="q" value="{{ q }}" placeholder="Sök i titel, metadata och hela dokumentet…" autofocus>
+    <select name="type" aria-label="Filtyp">
+      <option value="">Alla typer</option>
+      {% for type in source_types %}<option value="{{ type }}" {{ 'selected' if active_type == type else '' }}>{{ type }}</option>{% endfor %}
+    </select>
+    <select name="sort" aria-label="Sortering">
+      <option value="title" {{ 'selected' if sort == 'title' else '' }}>Titel A–Ö</option>
+      <option value="newest" {{ 'selected' if sort == 'newest' else '' }}>Senast ändrad</option>
+      <option value="oldest" {{ 'selected' if sort == 'oldest' else '' }}>Äldst ändrad</option>
+      <option value="path" {{ 'selected' if sort == 'path' else '' }}>Sökväg</option>
+    </select>
+    <button type="submit" class="btn-primary">Sök</button>
+  </form>
+  <p class="toolbar-count">Visar {{ result_count }} av {{ total_docs }} dokument</p>
+  {% if tags %}
+  <div class="tag-row">
+    <a href="{{ url_for('browse', q=q, type=active_type, sort=sort) }}" class="tag-chip {{ 'is-active' if not active_tag else '' }}">alla</a>
+    {% for t in tags %}
+    <a href="{{ url_for('browse', q=q, tag=t, type=active_type, sort=sort) }}" class="tag-chip {{ 'is-active' if active_tag == t else '' }}">#{{ t }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% if not docs %}
+<div class="empty-state">
+  <p class="empty-title">Katalogen är tom{% if q or active_tag %} för den här sökningen{% endif %}.</p>
+  {% if q or active_tag %}
+    <p class="empty-hint"><a href="{{ url_for('browse') }}">Rensa filter</a> för att se alla dokument.</p>
+  {% else %}
+    <p class="empty-hint">Lägg filer i <code>inbox/</code> och klicka på <strong>Uppdatera</strong> ovan.</p>
+  {% endif %}
+</div>
+{% else %}
+<div class="card-grid">
+  {% for d in docs %}
+  <a class="doc-card" href="{{ url_for('view_doc', relpath=d.rel_path) }}">
+    <h2>{{ d.title }}</h2>
+    {% if d.search_excerpt %}<p class="card-summary search-excerpt">{{ d.search_excerpt }}</p>
+    {% elif d.summary %}<p class="card-summary">{{ d.summary }}</p>{% endif %}
+    {% if d.tags %}
+    <div class="card-tags">
+      {% for t in d.tags %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="card-footer">
+      <span class="stamp">{{ d.source_type or "md" }}</span>
+      {% if d.source_hash %}<span class="hash">{{ d.source_hash[:10] }}</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

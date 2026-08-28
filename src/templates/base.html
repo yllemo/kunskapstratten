@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Kunskapstratten{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script>
+  // Sätts innan sidan målas upp så temat inte flimrar vid laddning.
+  (function () {
+    var saved = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+  })();
+</script>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="{{ url_for('browse') }}">Kunskapstratten</a>
+  <button id="nav-toggle" type="button" class="nav-toggle" aria-expanded="false" aria-controls="main-nav">
+    <span aria-hidden="true">☰</span><span class="sr-only">Öppna meny</span>
+  </button>
+  <nav id="main-nav">
+    <a href="{{ url_for('browse') }}" class="{{ 'is-active' if request.endpoint == 'browse' else '' }}">Bläddra</a>
+    <a href="{{ url_for('skills_page') }}" class="{{ 'is-active' if request.endpoint == 'skills_page' else '' }}">Skills</a>
+    <a href="{{ url_for('chat_page') }}" class="{{ 'is-active' if request.endpoint == 'chat_page' else '' }}">Chatta</a>
+    <a href="{{ url_for('new_doc') }}" class="{{ 'is-active' if request.endpoint == 'new_doc' else '' }}">Nytt dokument</a>
+    <a href="{{ url_for('upload_documents') }}" class="{{ 'is-active' if request.endpoint == 'upload_documents' else '' }}">Ladda upp</a>
+    <button id="reindex-btn" type="button" class="btn-secondary" title="Bearbeta inbox och uppdatera skills">Uppdatera</button>
+    <button id="theme-toggle" type="button" class="btn-secondary" aria-label="Växla mellan ljust och mörkt läge">◐</button>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <span>Kunskapstratten · körs lokalt på {{ request.host }}</span>
+</footer>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

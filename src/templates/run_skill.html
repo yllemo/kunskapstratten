@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Kör {{ skill.name }} – Kunskapstratten{% endblock %}
+{% block content %}
+<section class="skill-run-page">
+  <a class="back-link" href="{{ url_for('skills_page') }}">← Skills</a>
+  <div class="page-heading">
+    <div><span class="stamp">funktion</span><h1>{{ skill.name }}</h1><p>{{ skill.description }}</p></div>
+    <a class="btn-secondary button-link" href="{{ url_for('edit_skill', relpath=skill.rel_path) }}">Redigera kod</a>
+  </div>
+  {% if not ai_configured %}<p class="form-error">Ingen lokal AI är konfigurerad. Kontrollera <code>ai</code> i <code>config.yaml</code>.</p>{% endif %}
+  <div class="skill-run-layout">
+    <aside class="run-documents">
+      <div class="run-panel-heading"><h2>1. Välj underlag</h2><button id="toggleAllDocs" type="button" class="text-button">Välj alla</button></div>
+      <input id="runDocFilter" type="search" placeholder="Filtrera dokument…">
+      <div id="runDocList" class="document-picker-list">
+        {% for doc in docs %}
+        <label data-search="{{ (doc.title ~ ' ' ~ doc.rel_path ~ ' ' ~ doc.tags|join(' '))|lower }}">
+          <input type="checkbox" value="{{ doc.rel_path }}">
+          <span><strong>{{ doc.title }}</strong><small>{{ doc.rel_path }}</small></span>
+        </label>
+        {% else %}<p class="empty-hint">Kunskapsbanken saknar dokument.</p>{% endfor %}
+      </div>
+      <p id="selectionCount" class="toolbar-count">0 dokument valda</p>
+    </aside>
+    <div class="run-workspace">
+      <h2>2. Kör skillen</h2>
+      <label class="field-label">Kompletterande uppdrag (valfritt)
+        <textarea id="runTask" rows="4" placeholder="Exempel: Fokusera särskilt på risker och föreslå nästa steg."></textarea>
+      </label>
+      <button id="runSkillBtn" class="btn-primary" type="button" {{ 'disabled' if not ai_configured else '' }}>Kör {{ skill.name }}</button>
+      <section id="runResultPanel" class="run-result" hidden>
+        <div class="run-panel-heading"><h2>Resultat</h2><span id="runStatus"></span></div>
+        <pre id="runResult"></pre>
+        <div id="resultActions" class="edit-actions" hidden>
+          <input id="resultTitle" value="Resultat – {{ skill.name }}" aria-label="Dokumenttitel">
+          <button id="saveResultBtn" class="btn-primary" type="button">Spara i kunskapsbanken</button>
+          <button id="copyResultBtn" class="btn-secondary" type="button">Kopiera</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const skillSlug = {{ skill.slug | tojson }};
+  const skillName = {{ skill.name | tojson }};
+  const checks = [...document.querySelectorAll("#runDocList input[type=checkbox]")];
+  const filter = document.getElementById("runDocFilter");
+  const count = document.getElementById("selectionCount");
+  const toggle = document.getElementById("toggleAllDocs");
+  const runButton = document.getElementById("runSkillBtn");
+  const panel = document.getElementById("runResultPanel");
+  const result = document.getElementById("runResult");
+  const status = document.getElementById("runStatus");
+  const actions = document.getElementById("resultActions");
+  let controller = null;
+  function updateCount() { count.textContent = `${checks.filter(c => c.checked).length} dokument valda`; }
+  checks.forEach(c => c.addEventListener("change", updateCount));
+  filter.addEventListener("input", () => {
+    const query = filter.value.trim().toLowerCase();
+    document.querySelectorAll("#runDocList > label").forEach(row => { row.hidden = !row.dataset.search.includes(query); });
+  });
+  toggle.addEventListener("click", () => {
+    const visible = checks.filter(c => !c.closest("label").hidden);
+    const select = visible.some(c => !c.checked);
+    visible.forEach(c => { c.checked = select; });
+    toggle.textContent = select ? "Avmarkera synliga" : "Välj alla";
+    updateCount();
+  });
+  runButton.addEventListener("click", async () => {
+    const paths = checks.filter(c => c.checked).map(c => c.value);
+    if (!paths.length) { showToast("Välj minst ett dokument."); return; }
+    if (controller) { controller.abort(); return; }
+    controller = new AbortController();
+    panel.hidden = false; actions.hidden = true; result.textContent = ""; status.textContent = "Bearbetar…";
+    runButton.textContent = "Stoppa"; runButton.classList.add("stop");
+    try {
+      const response = await fetch("/api/skills/run", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({ skill: skillSlug, document_paths: paths, task: document.getElementById("runTask").value })
+      });
+      if (!response.ok) { const data = await response.json(); throw new Error(data.error || "Körningen misslyckades"); }
+      const reader = response.body.getReader(); const decoder = new TextDecoder();
+      while (true) { const chunk = await reader.read(); if (chunk.done) break; result.textContent += decoder.decode(chunk.value, {stream:true}); }
+      status.textContent = "Klart"; actions.hidden = false;
+    } catch (error) { status.textContent = error.name === "AbortError" ? "Avbruten" : "Fel"; if (error.name !== "AbortError") result.textContent = error.message; }
+    finally { controller = null; runButton.textContent = `Kör ${skillName}`; runButton.classList.remove("stop"); }
+  });
+  document.getElementById("copyResultBtn").addEventListener("click", async () => { await navigator.clipboard.writeText(result.textContent); showToast("Resultatet kopierades."); });
+  document.getElementById("saveResultBtn").addEventListener("click", async () => {
+    try {
+      const data = await postJSON("/api/skills/save-result", { skill: skillSlug, title: document.getElementById("resultTitle").value, body: result.textContent });
+      window.location.href = data.url;
+    } catch (error) { showToast("Kunde inte spara: " + error.message); }
+  });
+})();
+</script>
+{% endblock %}

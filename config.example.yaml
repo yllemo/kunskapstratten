@@ -1,0 +1,53 @@
+# Kopiera denna fil till config.yaml innan första körningen.
+paths:
+  inbox: "./inbox"
+  processed_archive: "./processed"
+  output: "./kunskapsbank"
+  images: "./kunskapsbank/images"
+  skills: "./skills"
+  registry_db: "./data/registry.db"
+  logs: "./logs"
+
+ai:
+  enabled: true
+  base_url: "http://localhost:11434/v1"
+  api_key: "not-needed"
+  model: "gemma4:26b"
+  context_window: 32768
+  use_for_image_description: true
+  use_for_metadata_enrichment: true
+  timeout: 120
+
+frontmatter:
+  author: ""
+  default_tags: []
+
+gui:
+  host: "127.0.0.1"
+  port: 5000
+
+supported_extensions:
+  - ".pdf"
+  - ".docx"
+  - ".doc"
+  - ".pptx"
+  - ".ppt"
+  - ".xlsx"
+  - ".xls"
+  - ".txt"
+  - ".md"
+  - ".html"
+  - ".htm"
+  - ".csv"
+  - ".json"
+  - ".xml"
+  - ".png"
+  - ".jpg"
+  - ".jpeg"
+  - ".gif"
+  - ".bmp"
+  - ".webp"
+  - ".mp3"
+  - ".wav"
+  - ".zip"
+  - ".epub"

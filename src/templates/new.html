@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Nytt dokument – Kunskapstratten{% endblock %}
+{% block content %}
+<section class="edit-view">
+  <a class="back-link" href="{{ url_for('browse') }}">← Bläddra</a>
+  <h1 class="edit-title">Skapa nytt dokument</h1>
+  <p class="empty-hint">Dokumentet sparas direkt i kunskapsbanken. Befintliga bearbetningsskills påverkas inte.</p>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" class="new-doc-form">
+    <label>Titel <input name="title" required value="{{ form.get('title', '') if form else '' }}"></label>
+    <label>Mapp <input name="folder" value="{{ form.get('folder', '') if form else '' }}" placeholder="exempel/projekt (valfritt)"></label>
+    <label>Taggar <input name="tags" value="{{ form.get('tags', '') if form else '' }}" placeholder="planering, möte, beslut"></label>
+    <label>Innehåll <textarea name="body" spellcheck="true" placeholder="# Rubrik&#10;&#10;Skriv i Markdown…">{{ form.get('body', '') if form else '' }}</textarea></label>
+    <div class="edit-actions">
+      <button class="btn-primary" type="submit">Skapa dokument</button>
+      <a class="btn-secondary" href="{{ url_for('browse') }}">Avbryt</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

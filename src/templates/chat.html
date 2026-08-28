@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Chatta – Kunskapstratten{% endblock %}
+{% block content %}
+<div class="chat-layout">
+  <aside class="chat-sidebar">
+    <div class="chat-sidebar-scroll">
+      <div class="section-title">Aktiv skill</div>
+      <select id="chatSkillSelect" class="chat-skill-select">
+        <option value="">Ingen skill – vanlig chatt</option>
+        {% for skill in chat_skills %}<option value="{{ skill.slug }}">{{ skill.name }}</option>{% endfor %}
+      </select>
+      <p id="chatSkillDescription" class="chat-sidebar-hint">Välj en skill för att använda dess instruktioner i chatten.</p>
+
+      <div class="section-title">Lägg till dokument</div>
+      {% if docs %}
+      <input type="text" id="docFilter" placeholder="Filtrera dokument…">
+      <ul class="doc-add-list" id="docAddList">
+        {% for d in docs %}
+        <li>
+          <label>
+            <input type="checkbox" class="doc-checkbox" value="{{ d.rel_path }}">
+            <span class="dname">{{ d.title }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="chat-sidebar-hint">Inga dokument i kunskapsbanken ännu.</p>
+      {% endif %}
+
+      <div class="section-title">Tillfällig fil</div>
+      <label class="temp-file-button">
+        <input id="tempFileInput" type="file" accept="{{ supported_extensions|join(',') }}">
+        <span>＋ Lägg till för denna chatt</span>
+      </label>
+      <p class="chat-sidebar-hint">Konverteras tillfälligt och läggs inte i inbox eller kunskapsbank.</p>
+      <ul class="ctx-list temp-context-list" id="tempCtxList"></ul>
+      <p id="tempFileStatus" class="chat-sidebar-hint"></p>
+
+      <div class="section-title">I kontext</div>
+      <ul class="ctx-list" id="ctxList"></ul>
+      <div class="ctx-bar">
+        <span><span class="num" id="ctxCount">0</span> dokument</span>
+        <span>~<span class="num" id="ctxTokens">0</span> tokens</span>
+      </div>
+      <button type="button" class="btn-secondary" id="clearCtxBtn" style="width:100%;margin-top:.6rem">Rensa</button>
+
+      <section class="context-meter" aria-labelledby="contextMeterTitle">
+        <div class="run-panel-heading">
+          <h3 id="contextMeterTitle">Kontextfönster</h3>
+          <strong id="contextPercent">0 %</strong>
+        </div>
+        <div class="context-meter-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="contextProgress">
+          <span id="contextMeterFill"></span>
+        </div>
+        <div class="context-meter-stats">
+          <span>~<strong id="contextUsed">0</strong> använda</span>
+          <span><strong id="contextLimit">0</strong> tokens totalt</span>
+        </div>
+        <div class="context-breakdown">
+          <span>Underlag <strong id="contextDocs">0</strong></span>
+          <span>Konversation <strong id="contextHistory">0</strong></span>
+          <span>Skill <strong id="contextSkill">0</strong></span>
+        </div>
+        <p class="chat-sidebar-hint">Grov uppskattning: cirka fyra tecken per token. Modellens faktiska tokenisering kan skilja sig.</p>
+      </section>
+    </div>
+  </aside>
+
+  <div class="chat-main">
+    <div class="chat-scroll" id="chatScroll">
+      <div class="empty-state chat-empty" id="chatEmpty">
+        <p class="empty-title">Chatta med kunskapsbanken</p>
+        <p class="empty-hint">
+          Lägg till dokument, en tillfällig fil eller välj en skill i sidopanelen,
+          skriv sedan din fråga nedan. Svaret genereras av samma lokala AI
+          som resten av verktyget använder (inställd i <code>config.yaml</code>).
+        </p>
+        {% if not ai_configured %}
+        <p class="empty-hint chat-warning">Ingen lokal AI konfigurerad i config.yaml (ai.enabled / ai.base_url / ai.model).</p>
+        {% endif %}
+      </div>
+    </div>
+    <form class="chat-composer" id="chatForm">
+      <textarea id="chatInput" rows="1" placeholder="Ställ en fråga…" {{ 'disabled' if not ai_configured else '' }}></textarea>
+      <button type="submit" class="btn-primary send-btn" id="chatSendBtn" title="Skicka" aria-label="Skicka" {{ 'disabled' if not ai_configured else '' }}>➤</button>
+    </form>
+    <p class="chat-meta">{{ ai_model_label }}</p>
+  </div>
+</div>
+
+<script id="chat-data" type="application/json">{{ chat_data | tojson }}</script>
+<script>window.INITIAL_SELECTION = {{ initial_paths | tojson }};</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='chat.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local configuration may later contain credentials or private paths
+config.yaml
+.env
+.env.*
+!.env.example
+
+# Runtime state and user data
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+inbox/*
+!inbox/.gitkeep
+processed/*
+!processed/.gitkeep
+
+# Knowledge base: publish only the curated examples
+kunskapsbank/*
+!kunskapsbank/.gitkeep
+!kunskapsbank/kom-igang.md
+!kunskapsbank/exempel/
+!kunskapsbank/exempel/**
+!kunskapsbank/images/
+kunskapsbank/images/*
+!kunskapsbank/images/.gitkeep
+
+# Skills: publish only bundled defaults under _custom
+skills/*
+!skills/.gitkeep
+!skills/_custom/
+!skills/_custom/**
+
+# Temporary test dependencies used by local verification
+.test-deps/
+
+# Local design prototype; maintained UI lives in src/templates + src/static
+kunskapsbank-koncept.html

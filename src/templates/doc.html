@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} – Kunskapstratten{% endblock %}
+{% block content %}
+<article class="doc-view">
+  <div class="doc-toolbar">
+    <a class="back-link" href="{{ url_for('browse') }}">← Bläddra</a>
+    <div class="doc-toolbar-actions">
+      <a class="btn-secondary" href="{{ url_for('chat_page', doc=relpath) }}">Chatta om detta</a>
+      <a class="btn-secondary" href="{{ url_for('download_doc', relpath=relpath) }}">Ladda ned .md</a>
+      <a class="btn-secondary" href="{{ url_for('edit_doc', relpath=relpath) }}">Redigera</a>
+    </div>
+  </div>
+  <header class="doc-header">
+    <h1>{{ doc.title }}</h1>
+    <div class="doc-meta">
+      {% if doc.source_file %}<span>Källa <code>{{ doc.source_file }}</code></span>{% endif %}
+      {% if doc.converted_at %}<span>Konverterad {{ doc.converted_at[:19].replace("T", " ") }}</span>{% endif %}
+      {% if doc.source_hash %}<span class="hash">{{ doc.source_hash[:12] }}</span>{% endif %}
+    </div>
+    {% if doc.tags %}
+    <div class="card-tags">{% for t in doc.tags %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}</div>
+    {% endif %}
+  </header>
+  {% if frontmatter %}
+  <details class="frontmatter-panel">
+    <summary>YAML-frontmatter <span>{{ frontmatter|length }} fält</span></summary>
+    <dl class="frontmatter-grid">
+      {% for key, value in frontmatter.items() %}
+      <div class="frontmatter-field">
+        <dt>{{ key.replace('_', ' ') }}</dt>
+        <dd>
+          {% if value is mapping %}<code>{{ value | tojson }}</code>
+          {% elif value is iterable and value is not string %}
+            <span class="frontmatter-list">{% for item in value %}<span>{{ item }}</span>{% endfor %}</span>
+          {% elif value is none %}<span class="frontmatter-empty">tomt</span>
+          {% else %}{{ value }}{% endif %}
+        </dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </details>
+  {% endif %}
+  <div class="doc-body">
+    {{ html_body | safe }}
+  </div>
+</article>
+{% endblock %}
+{% block scripts %}
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@latest/dist/mermaid.esm.min.mjs";
+
+const diagrams = [];
+document.querySelectorAll("pre > code.language-mermaid").forEach((code, index) => {
+  const container = document.createElement("div");
+  container.className = "mermaid-diagram";
+  container.setAttribute("role", "img");
+  container.setAttribute("aria-label", `Mermaid-diagram ${index + 1}`);
+  code.parentElement.replaceWith(container);
+  diagrams.push({ container, source: code.textContent, index });
+});
+
+async function renderDiagrams() {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: dark ? "dark" : "default",
+    fontFamily: "Arial, Helvetica, sans-serif"
+  });
+  for (const diagram of diagrams) {
+    try {
+      diagram.container.removeAttribute("data-error");
+      const id = `mermaid-${diagram.index}-${Date.now()}`;
+      const { svg } = await mermaid.render(id, diagram.source);
+      diagram.container.innerHTML = svg;
+    } catch (error) {
+      diagram.container.setAttribute("data-error", "true");
+      diagram.container.textContent = `Kunde inte rendera Mermaid-diagrammet: ${error.message || error}`;
+    }
+  }
+}
+
+if (diagrams.length) {
+  await renderDiagrams();
+  window.addEventListener("kunskapsbank:themechange", renderDiagrams);
+}
+</script>
+{% endblock %}

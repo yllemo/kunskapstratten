@@ -1,0 +1,15 @@
+# Kärnkonvertering (alla format: pdf, docx, pptx, xlsx, bilder, ljud m.m.)
+markitdown[all]
+
+# Klient mot lokal OpenAI-kompatibel AI (LM Studio / Ollama / vLLM / ...)
+# Används både vid ingest (bildbeskrivningar/metadata) och av chatten i GUI:t
+openai>=1.0.0
+
+# Config-filer
+pyyaml
+
+# Lokalt webb-GUI (bläddra, skills, chatt, redigering)
+flask>=3.0.0
+
+# Renderar de konverterade .md-filerna som HTML i GUI:t
+markdown>=3.5
