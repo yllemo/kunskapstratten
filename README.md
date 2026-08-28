@@ -13,6 +13,8 @@ Markdown, organisera en kunskapsbank, chatta med valda underlag och köra
 
 En lokal, Python-baserad implementation av tratt-arkitekturen:
 
+![Kunskapstratten - Arkitekturfritt diagram](kunskapstratten.png)
+
 ```
 Inbox / Landningsbrygga
         ↓
