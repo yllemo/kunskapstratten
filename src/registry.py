@@ -119,6 +119,15 @@ class Registry:
         from collections import Counter
         return dict(Counter(r["status"] for r in self.all_files()))
 
+    def remove_output(self, output_path):
+        """Ta bort importhistorik endast för det borttagna dokumentet."""
+        target = Path(output_path).resolve()
+        with self._locked():
+            rows = self.all_files()
+            retained = [r for r in rows if not r.get('output_path')
+                        or Path(r['output_path']).resolve() != target]
+            atomic_json(self.db_path, {'version': 1, 'files': retained})
+
     def list_by_status(self, status):
         return sorted((r for r in self.all_files() if r["status"] == status),
                       key=lambda r: r["discovered_at"])

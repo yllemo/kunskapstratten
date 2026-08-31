@@ -165,6 +165,21 @@ popup, i helskärm på mobil. Stäng med krysset eller Escape.
 
 ## Chatt
 
+I redigeringsvyerna för artiklar och skills finns **Radera** med bekräftelse.
+Den sparade Markdown-filen, dess kopplade original i `processed/` (via `source_file`)
+och tillhörande importhistorik tas bort permanent. Osparade ändringar kastas.
+En skills valda KB-filer raderas inte. Om originalet delas av flera dokument
+stoppas raderingen; kopplingen behöver då hanteras först.
+
+AI:n instrueras att ange källmarkörer i svar som bygger på valda KB-dokument.
+Appen kopplar markörerna till klickbara källhänvisningar med både **Öppna .md**
+och **Öppna original i processed** (via dokumentets `source_file`). Originalet
+kan även öppnas från artikelvyn. PDF, text och vanliga bilder öppnas i en ny
+flik; andra format laddas ned. Saknade original får ingen trasig länk.
+Om AI:n inte anger markörer visas istället en tydligt märkt lista över dokument
+i kontexten, inte ett påstående om använda källor. Hänvisningar följer med vid
+chattexport; länkarna fungerar i appen. AI:ns källval behöver fortfarande granskas.
+
 Chatten använder hela skärmhöjden med separat kontextpanel och fast skrivfält.
 På mobil öppnas panelen med **Kontext & skills**.
 

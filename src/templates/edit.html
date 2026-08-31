@@ -9,12 +9,14 @@
   <textarea id="editArea" class="edit-textarea editor-fallback" spellcheck="false">{{ raw }}</textarea>
   <div class="edit-actions">
     <button type="button" class="btn-primary" id="saveDocBtn">Spara</button>
+    <button type="button" class="btn-danger" id="deleteItemBtn" data-url="{{ url_for('delete_item', kind='doc', relpath=relpath) }}" data-back="{{ url_for('browse') }}">Radera</button>
     <a class="btn-secondary" href="{{ url_for('view_doc', relpath=relpath) }}">Avbryt</a>
     <span id="saveStatus" class="save-status"></span>
   </div>
 </section>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='delete-editor.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs/loader.js"></script>
 <script>
 (function () {

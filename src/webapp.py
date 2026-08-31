@@ -25,6 +25,7 @@ from werkzeug.utils import secure_filename
 from .ai_client import build_openai_client
 from .config import Config
 from .converter import Converter
+from .citations import source_id, original_path, sources_for, citation_footer, CITATION_PROMPT
 from .docstore import all_tags, list_documents, load_document, parse_markdown_file
 from .pipeline import Pipeline
 from .skillbuilder import create_custom_skill, list_custom_skills, validate_skill_documents
@@ -73,10 +74,11 @@ def _build_chat_context(
         full_path = (kb_root / rel).resolve()
         if kb_root != full_path and kb_root not in full_path.parents:
             continue
-        if not full_path.exists() or full_path.suffix != ".md":
+        if not full_path.is_file() or full_path.suffix != ".md":
             continue
         doc = load_document(kb_root, full_path)
-        blocks.append(f"--- {rel} ---\nTitel: {doc.title}\n\n{doc.body}")
+        key = source_id(full_path.relative_to(kb_root).as_posix())
+        blocks.append(f"--- {rel} ---\nKäll-ID: {key}\nTitel: {doc.title}\n\n{doc.body}")
     for item in temporary_documents or []:
         if not isinstance(item, dict):
             continue
@@ -94,6 +96,8 @@ def create_app(config: Config) -> Flask:
     register_settings(app, config)
     from .reset import register_reset
     register_reset(app, config)
+    from .deletion import register_deletion
+    register_deletion(app, config)
     app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
 
     @app.route("/help/guide")
@@ -224,7 +228,28 @@ def create_app(config: Config) -> Flask:
             html_body=html_body,
             relpath=relpath,
             frontmatter=frontmatter,
+            has_original=original_path(config, doc) is not None,
         )
+
+    @app.route("/doc/<path:relpath>/original")
+    def open_original(relpath):
+        full_path = _resolve_doc_path(relpath)
+        if full_path is None or not full_path.is_file():
+            return "Dokumentet hittades inte", 404
+        doc = load_document(config.paths.output.resolve(), full_path)
+        path = original_path(config, doc)
+        if path is None:
+            return "Originalet saknas eller är inte kopplat till dokumentet", 404
+        # Aktiva format som HTML/SVG får aldrig köras på appens origin.
+        inline_types = {'.pdf': 'application/pdf', '.txt': 'text/plain',
+                        '.md': 'text/plain', '.png': 'image/png',
+                        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}
+        mime = inline_types.get(path.suffix.lower())
+        response = send_file(path, mimetype=mime or 'application/octet-stream',
+                             as_attachment=mime is None, download_name=path.name)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Content-Security-Policy'] = "sandbox; default-src 'none'"
+        return response
 
     @app.route("/doc/<path:relpath>/download")
     def download_doc(relpath):
@@ -628,6 +653,7 @@ def create_app(config: Config) -> Flask:
             except ValueError as exc:
                 return jsonify(error=str(exc)), 400
         context_text = _build_chat_context(config, context_paths, temporary_documents)
+        sources = sources_for(config, context_paths)
         prompt = config.ai.system_prompt or CHAT_SYSTEM_PROMPT
         system_prompt = prompt.replace("{context}", context_text)
         if "{context}" not in prompt:
@@ -642,6 +668,7 @@ def create_app(config: Config) -> Flask:
                 f"INSTRUKTIONER:\n{skill['instructions']}\n\n"
                 + system_prompt
             )
+        system_prompt += CITATION_PROMPT
         full_messages = [{"role": "system", "content": system_prompt}]
         for m in messages:
             role = m.get("role") if isinstance(m, dict) else None
@@ -662,12 +689,15 @@ def create_app(config: Config) -> Flask:
                     temperature=config.ai.temperature,
                     stream=True,
                 )
+                answer_parts = []
                 for chunk in stream:
                     if not chunk.choices:
                         continue
                     delta = chunk.choices[0].delta.content
                     if delta:
+                        answer_parts.append(delta)
                         yield delta
+                yield citation_footer(''.join(answer_parts), sources)
             except Exception as exc:  # noqa: BLE001 - visas för användaren i chatten
                 logger.warning("Chattanrop till lokal AI misslyckades: %s", exc)
                 yield f"\n\n[FEL] Kunde inte nå den lokala AI:n: {exc}"
