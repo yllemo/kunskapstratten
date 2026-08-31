@@ -12,9 +12,7 @@ import yaml
 class AIConfig:
     """Inställningar för den lokala AI:n (OpenAI-kompatibelt API).
 
-    Används bara i ingest-steget (bildbeskrivningar + metadataberikning),
-    inte för frågesvar - det sköts av skills-konceptet istället, se
-    skillbuilder.py.
+    Delas av import, chatt och skill-körningar.
     """
     enabled: bool = True
     base_url: str = "http://localhost:11434/v1"
@@ -24,6 +22,9 @@ class AIConfig:
     use_for_image_description: bool = True
     use_for_metadata_enrichment: bool = True
     timeout: int = 120
+    provider: str = "ollama"
+    temperature: float = 0.3
+    system_prompt: str = ""
 
 
 @dataclass
@@ -41,7 +42,7 @@ class PathsConfig:
     output: Path = Path("./kunskapsbank")
     images: Path = Path("./kunskapsbank/images")
     skills: Path = Path("./skills")
-    registry_db: Path = Path("./data/registry.db")
+    registry_db: Path = Path("./data/registry.json")
     logs: Path = Path("./logs")
 
     def ensure_exist(self) -> None:
@@ -62,6 +63,32 @@ class Config:
     ai: AIConfig
     frontmatter: FrontmatterConfig
     gui: GuiConfig = field(default_factory=GuiConfig)
+    title: str = "Kunskapstratten"
+
+    def __post_init__(self):
+        from dataclasses import replace
+        self._initial_ai = replace(self.ai)
+        self._initial_title = self.title
+
+    @property
+    def settings_path(self) -> Path:
+        return self.paths.registry_db.parent / "settings.json"
+
+    @property
+    def memory_path(self) -> Path:
+        return self.paths.registry_db.parent / "MEMORY.md"
+
+    def memory(self) -> str:
+        return self.memory_path.read_text(encoding="utf-8") if self.memory_path.exists() else ""
+
+    def load_local_settings(self) -> None:
+        import json
+        if self.settings_path.exists():
+            data = json.loads(self.settings_path.read_text(encoding="utf-8"))
+            self.title = data.get("title", self.title)
+            for key, value in data.get("ai", {}).items():
+                if key in AIConfig.__dataclass_fields__:
+                    setattr(self.ai, key, value)
     supported_extensions: list[str] = field(default_factory=lambda: [
         ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls",
         ".txt", ".md", ".html", ".htm", ".csv", ".json", ".xml",
@@ -85,7 +112,7 @@ class Config:
             output=Path(paths_raw.get("output", "./kunskapsbank")),
             images=Path(paths_raw.get("images", "./kunskapsbank/images")),
             skills=Path(paths_raw.get("skills", "./skills")),
-            registry_db=Path(paths_raw.get("registry_db", "./data/registry.db")),
+            registry_db=Path(paths_raw.get("registry_file", paths_raw.get("registry_db", "./data/registry.json"))),
             logs=Path(paths_raw.get("logs", "./logs")),
         )
 
@@ -116,4 +143,5 @@ class Config:
         cfg = cls(paths=paths, ai=ai, frontmatter=frontmatter, gui=gui)
         if "supported_extensions" in raw:
             cfg.supported_extensions = raw["supported_extensions"]
+        cfg.load_local_settings()
         return cfg

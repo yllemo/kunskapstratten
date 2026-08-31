@@ -24,9 +24,12 @@ def build_openai_client(ai_cfg: AIConfig):
             "Paketet 'openai' saknas. Installera med: pip install openai"
         ) from exc
 
+    base_url = ai_cfg.base_url.rstrip("/")
+    if ai_cfg.provider == "ollama" and not base_url.endswith("/v1"):
+        base_url += "/v1"
     return OpenAI(
-        base_url=ai_cfg.base_url,
-        api_key=ai_cfg.api_key,
+        base_url=base_url,
+        api_key=ai_cfg.api_key or "not-needed",
         timeout=ai_cfg.timeout,
     )
 

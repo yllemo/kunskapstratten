@@ -1,60 +1,119 @@
 {% extends "base.html" %}
-{% block title %}Bläddra – Kunskapstratten{% endblock %}
+{% block title %}Bläddra – {{ site_title }}{% endblock %}
+{% macro document_tags(d) %}
+<div class="card-tags">
+  {% for t in d.tags[:3] %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}
+  {% if d.tags|length > 3 %}<span class="tag-chip small" title="{{ d.tags[3:]|join(', ') }}">+{{ d.tags|length - 3 }} taggar</span>{% endif %}
+</div>
+{% endmacro %}
 {% block content %}
 <section class="index-toolbar">
   <form method="get" class="search-form" action="{{ url_for('browse') }}">
+    <input type="hidden" name="view" value="{{ view }}">
     {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
-    <input type="text" name="q" value="{{ q }}" placeholder="Sök i titel, metadata och hela dokumentet…" autofocus>
+    <input type="text" name="q" value="{{ q }}" aria-label="Sök artiklar" placeholder="Sök i titel, metadata och hela dokumentet…">
     <select name="type" aria-label="Filtyp">
       <option value="">Alla typer</option>
       {% for type in source_types %}<option value="{{ type }}" {{ 'selected' if active_type == type else '' }}>{{ type }}</option>{% endfor %}
     </select>
     <select name="sort" aria-label="Sortering">
-      <option value="title" {{ 'selected' if sort == 'title' else '' }}>Titel A–Ö</option>
-      <option value="newest" {{ 'selected' if sort == 'newest' else '' }}>Senast ändrad</option>
-      <option value="oldest" {{ 'selected' if sort == 'oldest' else '' }}>Äldst ändrad</option>
-      <option value="path" {{ 'selected' if sort == 'path' else '' }}>Sökväg</option>
+      {% for value, label in [('title','Titel A–Ö'),('newest','Senast ändrad'),('oldest','Äldst ändrad'),('path','Sökväg')] %}
+      <option value="{{ value }}" {{ 'selected' if sort == value else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="per_page" aria-label="Artiklar per sida">
+      {% for size in [24,48,96] %}<option value="{{ size }}" {{ 'selected' if per_page == size else '' }}>{{ size }} per sida</option>{% endfor %}
     </select>
     <button type="submit" class="btn-primary">Sök</button>
   </form>
-  <p class="toolbar-count">Visar {{ result_count }} av {{ total_docs }} dokument</p>
-  {% if tags %}
-  <div class="tag-row">
-    <a href="{{ url_for('browse', q=q, type=active_type, sort=sort) }}" class="tag-chip {{ 'is-active' if not active_tag else '' }}">alla</a>
-    {% for t in tags %}
-    <a href="{{ url_for('browse', q=q, tag=t, type=active_type, sort=sort) }}" class="tag-chip {{ 'is-active' if active_tag == t else '' }}">#{{ t }}</a>
-    {% endfor %}
+
+  <div class="browse-heading">
+    <p class="toolbar-count">Visar {{ first_result }}–{{ last_result }} av {{ result_count }} träffar · {{ total_docs }} artiklar totalt</p>
+    <nav class="view-switch" aria-label="Visningsläge">
+      {% for value, label in [('cards','Kort'),('list','Lista'),('table','Tabell')] %}
+      <a href="{{ browse_url(view=value) }}" class="{{ 'is-active' if view == value else '' }}" {% if view == value %}aria-current="true"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <details class="browse-tags" open>
+    <summary>Taggar <span class="count-badge">{{ tag_count }}</span> <span class="tag-note">antal artiklar per tagg i hela banken</span></summary>
+    <form method="get" class="tag-search" action="{{ url_for('browse') }}">
+      {% for name, value in [('q',q),('tag',active_tag),('type',active_type),('sort',sort),('view',view),('per_page',per_page),('page',page)] %}
+      <input type="hidden" name="{{ name }}" value="{{ value }}">
+      {% endfor %}
+      <input type="search" name="tq" value="{{ tag_query }}" aria-label="Sök bland taggar" placeholder="Hitta en tagg…">
+      <button type="submit" class="btn-secondary">Sök tagg</button>
+      {% if tag_query %}<a href="{{ browse_url(tq='', tag_page=1) }}">Visa alla taggar</a>{% endif %}
+    </form>
+    <div class="tag-row">
+      <a href="{{ browse_url(tag='', page=1) }}" class="tag-chip {{ 'is-active' if not active_tag else '' }}">Alla <span class="count-badge">{{ total_docs }}</span></a>
+      {% for t in tags %}
+      <a href="{{ browse_url(tag=t, page=1) }}" class="tag-chip {{ 'is-active' if active_tag == t else '' }}">#{{ t }} <span class="count-badge">{{ tag_counts[t] }}</span></a>
+      {% endfor %}
+    </div>
+    {% if not tags %}<p>Inga taggar matchar sökningen.</p>{% endif %}
+    {% if tag_pages > 1 %}
+    <nav class="tag-pagination" aria-label="Taggsidor">
+      {% if tag_page > 1 %}<a href="{{ browse_url(tag_page=tag_page-1) }}">← Föregående taggar</a>{% endif %}
+      <span>{{ matching_tag_count }} taggar · sida {{ tag_page }} av {{ tag_pages }} · högst 12 visas</span>
+      {% if tag_page < tag_pages %}<a href="{{ browse_url(tag_page=tag_page+1) }}">Fler taggar →</a>{% endif %}
+    </nav>
+    {% endif %}
+  </details>
+  {% if q or active_tag or active_type %}
+  <div class="active-filters">
+    {% if active_tag %}<a class="tag-chip is-active" href="{{ browse_url(tag='',page=1) }}" aria-label="Ta bort taggfiltret {{ active_tag }}">#{{ active_tag }} ×</a>{% endif %}
+    <a href="{{ url_for('browse',view=view,per_page=per_page,sort=sort) }}">Rensa artikelfilter</a>
   </div>
   {% endif %}
 </section>
 
 {% if not docs %}
 <div class="empty-state">
-  <p class="empty-title">Katalogen är tom{% if q or active_tag %} för den här sökningen{% endif %}.</p>
-  {% if q or active_tag %}
-    <p class="empty-hint"><a href="{{ url_for('browse') }}">Rensa filter</a> för att se alla dokument.</p>
-  {% else %}
-    <p class="empty-hint">Lägg filer i <code>inbox/</code> och klicka på <strong>Uppdatera</strong> ovan.</p>
-  {% endif %}
+  <p class="empty-title">{{ 'Inga artiklar matchar dina filter.' if q or active_tag or active_type else 'Katalogen är tom.' }}</p>
+  <p class="empty-hint">Ladda upp dokument till inboxen eller <a href="{{ url_for('new_doc') }}">skapa en artikel</a>.</p>
+</div>
+{% elif view == 'table' %}
+<div class="browse-table-wrap" role="region" aria-label="Artiklar i tabell" tabindex="0">
+<table class="browse-table">
+  <thead><tr><th scope="col">Artikel</th><th scope="col">Taggar</th><th scope="col">Typ</th></tr></thead>
+  <tbody>{% for d in docs %}
+    <tr><td><a class="article-title" href="{{ url_for('view_doc',relpath=d.rel_path) }}">{{ d.title }}</a><span class="article-path">{{ d.rel_path }}</span>{% if d.search_excerpt %}<p class="browse-excerpt">{{ d.search_excerpt }}</p>{% endif %}</td><td>{{ document_tags(d) }}</td><td><span class="stamp">{{ d.source_type or 'md' }}</span></td></tr>
+  {% endfor %}</tbody>
+</table>
 </div>
 {% else %}
-<div class="card-grid">
+<div class="{{ 'card-grid browse-cards' if view == 'cards' else 'browse-list' }}">
   {% for d in docs %}
-  <a class="doc-card" href="{{ url_for('view_doc', relpath=d.rel_path) }}">
-    <h2>{{ d.title }}</h2>
+  <a class="doc-card {{ 'browse-list-item' if view == 'list' else '' }}" href="{{ url_for('view_doc',relpath=d.rel_path) }}">
+    <div class="article-content"><h2>{{ d.title }}</h2><span class="article-path">{{ d.rel_path }}</span>
     {% if d.search_excerpt %}<p class="card-summary search-excerpt">{{ d.search_excerpt }}</p>
-    {% elif d.summary %}<p class="card-summary">{{ d.summary }}</p>{% endif %}
-    {% if d.tags %}
-    <div class="card-tags">
-      {% for t in d.tags %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}
-    </div>
-    {% endif %}
-    <div class="card-footer">
-      <span class="stamp">{{ d.source_type or "md" }}</span>
-      {% if d.source_hash %}<span class="hash">{{ d.source_hash[:10] }}</span>{% endif %}
-    </div>
+    {% elif d.summary %}<p class="card-summary">{{ d.summary }}</p>{% endif %}</div>
+    {{ document_tags(d) }}
+    <div class="card-footer"><span class="stamp">{{ d.source_type or 'md' }}</span></div>
   </a>
   {% endfor %}
 </div>
 {% endif %}
+
+{% if result_count %}
+<nav class="browse-pagination" aria-label="Artikelsidor">
+  {% if page > 1 %}<a href="{{ browse_url(page=page-1) }}" rel="prev">← Föregående</a>{% endif %}
+  {% for number in page_numbers %}
+    {% if not loop.first and number > page_numbers[loop.index0-1] + 1 %}<span aria-hidden="true">…</span>{% endif %}
+    <a href="{{ browse_url(page=number) }}" {% if page == number %}aria-current="page" class="is-active"{% endif %}>{{ number }}</a>
+  {% endfor %}
+  {% if page < pages %}<a href="{{ browse_url(page=page+1) }}" rel="next">Nästa →</a>{% endif %}
+  <span>Sida {{ page }} av {{ pages }}</span>
+</nav>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  // På mobil får artiklarna företräde; taggarna öppnas vid behov.
+  if (window.matchMedia('(max-width: 720px)').matches && !{{ (tag_query != '')|tojson }}) {
+    document.querySelector('.browse-tags').open = false;
+  }
+</script>
 {% endblock %}

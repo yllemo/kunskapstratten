@@ -1,108 +1,124 @@
-"""Register (SQLite) som håller reda på vilka filer som hittats/processats.
-
-Varje fil identifieras av (source_path, content_hash). Om samma fil dyker
-upp igen med samma hash och redan är markerad 'done' hoppas den över,
-vilket gör pipelinen säker att köra om (idempotent).
-"""
+"""JSON-baserat importregister med atomiska skrivningar och engångsmigrering."""
 from __future__ import annotations
-
 import hashlib
-import sqlite3
+import json
+import os
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source_path TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    output_path TEXT,
-    error_message TEXT,
-    discovered_at TEXT NOT NULL,
-    processed_at TEXT,
-    UNIQUE(source_path, content_hash)
-);
-CREATE INDEX IF NOT EXISTS idx_files_hash ON files(content_hash);
-CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);
-"""
-
+def atomic_json(path, value):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
 
 def hash_file(path: Path, chunk_size: int = 1 << 20) -> str:
-    """SHA-256 av filinnehållet, används för att avgöra om en fil ändrats."""
     h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(chunk_size), b""):
             h.update(chunk)
     return h.hexdigest()
 
-
 class Registry:
-    def __init__(self, db_path: Path):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path):
+        original = Path(db_path)
+        self.db_path = original.with_suffix(".json")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.db_path)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.executescript(SCHEMA)
-        self._conn.commit()
+        with self._locked():
+            if not self.db_path.exists():
+                legacy = original.with_suffix(".db")
+                rows = []
+                if legacy.exists():
+                    import sqlite3
+                    conn = sqlite3.connect(legacy.resolve().as_uri() + "?mode=ro", uri=True)
+                    try:
+                        conn.row_factory = sqlite3.Row
+                        rows = [dict(row) for row in conn.execute("SELECT * FROM files ORDER BY id")]
+                    finally:
+                        conn.close()
+                atomic_json(self.db_path, {"version": 1, "files": rows})
+                if legacy.exists() and not legacy.with_suffix(".db.bak").exists():
+                    legacy.rename(legacy.with_suffix(".db.bak"))
 
-    def close(self) -> None:
-        self._conn.close()
+    @contextmanager
+    def _locked(self):
+        with open(self.db_path.with_suffix(".lock"), "a+b") as lock:
+            lock.seek(0, 2)
+            if not lock.tell():
+                lock.write(b"0")
+                lock.flush()
+            lock.seek(0)
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                lock.seek(0)
+                if os.name == "nt":
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(lock, fcntl.LOCK_UN)
 
-    def __enter__(self) -> "Registry":
+    def close(self):
+        pass
+
+    def __enter__(self):
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc):
         self.close()
 
-    def already_processed(self, source_path: Path, content_hash: str) -> bool:
-        cur = self._conn.execute(
-            "SELECT status FROM files WHERE source_path = ? AND content_hash = ?",
-            (str(source_path), content_hash),
-        )
-        row = cur.fetchone()
-        return bool(row) and row["status"] == "done"
+    def all_files(self):
+        return json.loads(self.db_path.read_text(encoding="utf-8"))["files"]
 
-    def mark_pending(self, source_path: Path, content_hash: str) -> int:
-        now = datetime.now(timezone.utc).isoformat()
-        cur = self._conn.execute(
-            """INSERT INTO files (source_path, content_hash, status, discovered_at)
-               VALUES (?, ?, 'pending', ?)
-               ON CONFLICT(source_path, content_hash)
-               DO UPDATE SET status='pending'""",
-            (str(source_path), content_hash, now),
-        )
-        self._conn.commit()
-        return cur.lastrowid
+    def already_processed(self, source_path, content_hash):
+        return any(r["source_path"] == str(source_path) and r["content_hash"] == content_hash
+                   and r["status"] == "done" for r in self.all_files())
 
-    def mark_done(self, source_path: Path, content_hash: str, output_path: Path) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        self._conn.execute(
-            """UPDATE files SET status='done', output_path=?, processed_at=?, error_message=NULL
-               WHERE source_path=? AND content_hash=?""",
-            (str(output_path), now, str(source_path), content_hash),
-        )
-        self._conn.commit()
+    def _update(self, source_path, content_hash, **values):
+        with self._locked():
+            rows = self.all_files()
+            row = next((r for r in rows if r["source_path"] == str(source_path)
+                        and r["content_hash"] == content_hash), None)
+            if row is None:
+                row = dict(id=max((r["id"] for r in rows), default=0) + 1,
+                           source_path=str(source_path), content_hash=content_hash,
+                           discovered_at=datetime.now(timezone.utc).isoformat(),
+                           output_path=None, error_message=None, processed_at=None)
+                rows.append(row)
+            row.update(values)
+            atomic_json(self.db_path, {"version": 1, "files": rows})
+            return row["id"]
 
-    def mark_error(self, source_path: Path, content_hash: str, error: str) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        self._conn.execute(
-            """UPDATE files SET status='error', error_message=?, processed_at=?
-               WHERE source_path=? AND content_hash=?""",
-            (error, now, str(source_path), content_hash),
-        )
-        self._conn.commit()
+    def mark_pending(self, source_path, content_hash):
+        return self._update(source_path, content_hash, status="pending")
 
-    def counts(self) -> dict[str, int]:
-        cur = self._conn.execute("SELECT status, COUNT(*) c FROM files GROUP BY status")
-        return {row["status"]: row["c"] for row in cur.fetchall()}
+    def mark_done(self, source_path, content_hash, output_path):
+        self._update(source_path, content_hash, status="done", output_path=str(output_path),
+                     error_message=None, processed_at=datetime.now(timezone.utc).isoformat())
 
-    def list_by_status(self, status: str) -> list[sqlite3.Row]:
-        cur = self._conn.execute(
-            "SELECT * FROM files WHERE status=? ORDER BY discovered_at", (status,)
-        )
-        return cur.fetchall()
+    def mark_error(self, source_path, content_hash, error):
+        self._update(source_path, content_hash, status="error", error_message=error,
+                     processed_at=datetime.now(timezone.utc).isoformat())
 
-    def all_files(self) -> list[sqlite3.Row]:
-        cur = self._conn.execute("SELECT * FROM files ORDER BY discovered_at")
-        return cur.fetchall()
+    def counts(self):
+        from collections import Counter
+        return dict(Counter(r["status"] for r in self.all_files()))
+
+    def list_by_status(self, status):
+        return sorted((r for r in self.all_files() if r["status"] == status),
+                      key=lambda r: r["discovered_at"])

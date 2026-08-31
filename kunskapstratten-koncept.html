@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="sv" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kunskapstratten – Konceptet</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9Ikt1bnNrYXBzYmFuayI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwMDc3YmMiLz4KICA8cGF0aCBkPSJNMTIgMTUgTDUyIDE1IEwzNSAzNCBMMzUgNTAgTDI5IDUwIEwyOSAzNCBaIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPg==">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@latest/dist/mermaid.min.js"></script>
+<style>
+:root{
+  --gs-blue:#0077bc;
+  --bg-color:#FFFFFE; --bg-footer:#F5F5F5; --bg-nav:#F4F9FC; --bg-info:#F2F9F9;
+  --text-color:#333333; --text-secondary:#6E6E6E; --link-color:#005799; --border-color:#979797;
+  --success:#5a8b3b; --warning:#f2a900; --error:#d24723; --info:#008391;
+  --radius:4px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+}
+[data-theme="dark"]{
+  --bg-color:#1F1F1F; --bg-footer:#121212; --bg-nav:#141414; --bg-info:#282828;
+  --text-color:#FFFFFF; --text-secondary:#E3E8E9; --link-color:#479EF5; --border-color:#666666;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0; padding:0}
+body{
+  font-family:'Goteborg',Arial,Helvetica,sans-serif; font-size:16px; line-height:1.55;
+  color:var(--text-color); background:var(--bg-color); min-height:100vh; display:flex; flex-direction:column;
+}
+h1,h2,h3{font-family:'Goteborg',Arial,Helvetica,sans-serif; color:var(--text-color)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.88em; background:var(--bg-info); padding:.1em .4em; border-radius:var(--radius)}
+a{color:var(--link-color)}
+:focus-visible{outline:2.5px solid var(--gs-blue); outline-offset:2px}
+
+/* Header */
+header{
+  background:var(--bg-color); border-bottom:3px solid var(--gs-blue);
+  padding:.9rem 1.6rem; display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:.55rem; font-weight:700; font-size:1.15rem; color:var(--gs-blue)}
+.brand .mark{width:26px; height:26px; flex-shrink:0}
+.brand .sub{font-weight:400; font-size:.82rem; color:var(--text-secondary); margin-left:.2rem}
+header .spacer{flex:1}
+.theme-btn{
+  width:2.3rem; height:2.3rem; border-radius:var(--radius); border:1px solid var(--border-color);
+  background:var(--bg-color); color:var(--text-color); font-size:1rem; cursor:pointer;
+}
+.theme-btn:hover{border-color:var(--gs-blue); color:var(--gs-blue)}
+
+/* Tabs */
+.tabbar{
+  display:flex; gap:.4rem; flex-wrap:wrap; padding:.7rem 1.6rem; background:var(--bg-nav);
+  border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:10;
+}
+.tab-btn{
+  font-family:inherit; font-size:.9rem; font-weight:600; padding:.5rem .9rem; border-radius:var(--radius);
+  border:1px solid transparent; background:transparent; color:var(--text-color); cursor:pointer;
+}
+.tab-btn:hover{color:var(--gs-blue)}
+.tab-btn.active{background:var(--gs-blue); color:#fff}
+
+/* Main */
+main{flex:1; width:100%; max-width:90rem; margin:0 auto; padding:2.2rem 1.6rem 3.5rem}
+.panel{display:none}
+.panel.active{display:block; animation:fade .25s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+
+.eyebrow{
+  font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--gs-blue); margin:0 0 .4rem;
+}
+h1.page-title{font-size:1.9rem; font-weight:700; line-height:1.2; margin:0 0 .8rem}
+h2.section-title{font-size:1.3rem; font-weight:700; margin:2.2rem 0 .8rem}
+h2.section-title:first-child{margin-top:0}
+.lead{font-size:1.05rem; color:var(--text-secondary); max-width:42rem; margin:0 0 1.6rem}
+
+/* Diagramkort - alltid ljust, oberoende av tema (mermaid-färgerna är fasta) */
+.diagram-card{
+  background:#ffffff; border:1px solid var(--border-color); border-radius:var(--radius);
+  padding:1.3rem; margin:1.2rem 0 1.6rem; overflow-x:auto; box-shadow:var(--shadow);
+}
+.diagram-card .mermaid{display:flex; justify-content:center}
+.diagram-caption{font-size:.82rem; color:var(--text-secondary); margin:-1rem 0 1.6rem; text-align:center}
+
+/* Kort-grid */
+.card-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:1rem; margin:1.2rem 0 1.6rem}
+.pillar-card, .feature-card{
+  background:var(--bg-info); border:1px solid var(--border-color); border-left:3px solid var(--gs-blue);
+  border-radius:var(--radius); padding:1.1rem 1.2rem;
+}
+.pillar-card .ico, .feature-card .ico{font-size:1.5rem; margin-bottom:.5rem; display:block}
+.pillar-card h3, .feature-card h3{font-size:1.02rem; font-weight:700; margin:0 0 .4rem}
+.pillar-card p, .feature-card p{font-size:.9rem; color:var(--text-secondary); margin:0}
+.feature-card .route{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.76rem; color:var(--gs-blue); display:block; margin-bottom:.35rem}
+
+/* Lager-lista (arkitektur) */
+.layer-list{list-style:none; margin:0 0 1.6rem; padding:0; counter-reset:layer}
+.layer-item{
+  counter-increment:layer; position:relative; padding:1rem 1.2rem 1rem 3.4rem; margin-bottom:.7rem;
+  background:var(--bg-color); border:1px solid var(--border-color); border-radius:var(--radius);
+}
+.layer-item::before{
+  content:counter(layer); position:absolute; left:1rem; top:1rem; width:1.7rem; height:1.7rem;
+  border-radius:50%; background:var(--gs-blue); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+.layer-item h3{font-size:1rem; font-weight:700; margin:0 0 .3rem}
+.layer-item p{font-size:.9rem; color:var(--text-secondary); margin:0 0 .35rem}
+.layer-item .folder{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; color:var(--gs-blue)}
+
+/* Jämförelsetabell */
+.compare-table{width:100%; border-collapse:collapse; margin:1.2rem 0 1.6rem; font-size:.9rem}
+.compare-table th, .compare-table td{border:1px solid var(--border-color); padding:.6rem .8rem; text-align:left; vertical-align:top}
+.compare-table th{background:var(--bg-nav); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em}
+.compare-table td.rag{color:var(--error)}
+.compare-table td.skills{color:var(--success); font-weight:600}
+
+/* Highlight-box */
+.highlight-box{
+  background:var(--bg-nav); border:1px solid var(--border-color); border-radius:var(--radius);
+  padding:1.1rem 1.3rem; margin:1.6rem 0; display:flex; gap:.8rem; align-items:flex-start;
+}
+.highlight-box .ico{font-size:1.3rem; flex-shrink:0}
+.highlight-box h3{font-size:.95rem; font-weight:700; margin:0 0 .3rem}
+.highlight-box p{font-size:.88rem; color:var(--text-secondary); margin:0}
+
+/* Steg (kom igång) */
+.step-list{list-style:none; margin:0 0 1.6rem; padding:0}
+.step{display:flex; gap:1rem; padding:0 0 1.4rem; position:relative}
+.step:not(:last-child)::before{
+  content:''; position:absolute; left:1.05rem; top:2.3rem; bottom:0; width:2px; background:var(--border-color);
+}
+.step .num{
+  flex-shrink:0; width:2.2rem; height:2.2rem; border-radius:50%; background:var(--gs-blue); color:#fff;
+  font-weight:700; display:flex; align-items:center; justify-content:center; z-index:1;
+}
+.step .body{padding-top:.15rem}
+.step h3{font-size:1rem; font-weight:700; margin:0 0 .3rem}
+.step p{font-size:.9rem; color:var(--text-secondary); margin:0 0 .5rem}
+.step pre{
+  background:var(--bg-info); border:1px solid var(--border-color); border-radius:var(--radius);
+  padding:.6rem .8rem; font-size:.82rem; overflow-x:auto; margin:0;
+}
+
+footer{
+  background:var(--bg-footer); color:var(--text-secondary); text-align:center; font-size:.8rem;
+  padding:1rem; border-top:1px solid var(--border-color);
+}
+
+@media(max-width:640px){
+  header{padding:.75rem 1rem} main{padding:1.6rem 1rem 2.5rem} .tabbar{padding:.6rem 1rem}
+  h1.page-title{font-size:1.5rem}
+  .tabbar{flex-wrap:nowrap; overflow-x:auto}
+  .tab-btn{flex-shrink:0}
+  .diagram-card .mermaid{display:block}
+  .diagram-card svg{min-width:560px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 64 64" role="img" aria-label="Kunskapstratten">
+      <rect width="64" height="64" rx="14" fill="#0077bc"/>
+      <path d="M12 15 L52 15 L35 34 L35 50 L29 50 L29 34 Z" fill="#ffffff"/>
+    </svg>
+    Kunskapstratten <span class="sub">Konceptet</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="theme-btn" id="themeBtn" title="Växla tema" aria-label="Växla mellan ljust och mörkt läge">◐</button>
+</header>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab-btn active" data-tab="oversikt">Översikt</button>
+  <button class="tab-btn" data-tab="arkitektur">Arkitektur</button>
+  <button class="tab-btn" data-tab="skillsvsrag">Skills & underlag</button>
+  <button class="tab-btn" data-tab="gui">GUI:t</button>
+  <button class="tab-btn" data-tab="installningar">AI & minne</button>
+  <button class="tab-btn" data-tab="komigang">Kom igång</button>
+</nav>
+
+<main>
+  <section class="panel active" id="panel-oversikt">
+    <p class="eyebrow">Nuvarande funktioner · uppdaterad 31 augusti 2026</p>
+    <h1 class="page-title">Från dokument till användbar kunskap</h1>
+    <p class="lead">Kunskapstratten omvandlar dokument till en sökbar kunskapsbank i Markdown.
+      Du väljer sedan vilka filer en chatt eller återanvändbar skill ska bearbeta.
+      Den här sidan beskriver programmet; den är inte själva arbetsgränssnittet.</p>
+    <div class="diagram-card"><div class="mermaid">
+flowchart LR
+  inbox["Inbox: dokument"] --> import["Import: MarkItDown + valfri AI"]
+  import --> kb["Kunskapsbank: Markdown + YAML"]
+  import --> archive["processed/: originalfiler"]
+  kb --> selection["Du väljer underlag"]
+  skills["Färdiga eller egna skills"] --> run["Chatt / skill-körning"]
+  selection --> run
+  memory["MEMORY.md"] --> run
+  run --> save["Spara resultat till KB"]
+  save --> kb
+    </div></div>
+    <p class="diagram-caption">Import och bearbetning är separata steg. Importen skapar inga skills.</p>
+    <div class="card-grid">
+      <article class="pillar-card"><span class="ico">📁</span><h3>Filer, inte databas</h3><p>Markdown för innehåll och minne, JSON för importhistorik och GUI-inställningar. Inget vektorindex.</p></article>
+      <article class="pillar-card"><span class="ico">🧩</span><h3>Du väljer uppgiften</h3><p>Välj en skill och de .md-filer som ska ingå. Samma kunskapsbank kan bearbetas på flera sätt.</p></article>
+      <article class="pillar-card"><span class="ico">⚙️</span><h3>Lokal AI som standard</h3><p>Ollama på localhost:11434 med gemma4:26b. Byt server och modell i GUI:t.</p></article>
+      <article class="pillar-card"><span class="ico">🖥️</span><h3>Desktop och mobil</h3><p>Bläddra, ladda upp, redigera och chatta. Chatten använder hela höjden och har ett fast skrivfält.</p></article>
+    </div>
+    <div class="highlight-box"><span class="ico">🔒</span><div><h3>Du styr var AI-anropen hamnar</h3><p>Dokumenten lagras lokalt. Väljer du en extern AI-server skickas underlaget dit. Monaco, Mermaid och vissa resurser hämtas från CDN; helt offline är därför inte garanterat.</p></div></div>
+  </section>
+
+  <section class="panel" id="panel-arkitektur">
+    <p class="eyebrow">Arkitektur</p><h1 class="page-title">Tydliga filer på disk</h1>
+    <p class="lead">Kunskapsbanken är inte en SQL-databas. Dokument, original, skills och inställningar har varsin tydlig plats. Sökvägarna nedan är standardvärden.</p>
+    <ol class="layer-list">
+      <li class="layer-item"><h3>Inbox</h3><p>Ladda upp via GUI:t eller lägg filer direkt här. Importen tar hand om format som stöds av konverteraren.</p><span class="folder">inbox/</span></li>
+      <li class="layer-item"><h3>Konverterat innehåll</h3><p>Markdown med YAML-frontmatter, sökbar text och metadata. Bilder lagras i en separat undermapp.</p><span class="folder">kunskapsbank/ · kunskapsbank/images/</span></li>
+      <li class="layer-item"><h3>Originalarkiv</h3><p>Efter lyckad import flyttas originalfilen hit från inboxen. En importerad .md-fil är alltså fortfarande .md här; andra original behåller sina format.</p><span class="folder">processed/</span></li>
+      <li class="layer-item"><h3>Bearbetningsskills</h3><p>Återanvändbara instruktioner med namn och beskrivning, skapade manuellt eller medföljande som exempel. Oberoende av kunskapsbankens mappstruktur.</p><span class="folder">skills/_custom/&lt;slug&gt;/SKILL.md</span></li>
+      <li class="layer-item"><h3>Importregister</h3><p>Hash, status, källfil, resultatfil och tidsstämplar. Atomiska skrivningar och fillås skyddar uppdateringar.</p><span class="folder">data/registry.json</span></li>
+      <li class="layer-item"><h3>Inställningar och minne</h3><p>GUI-inställningarna överstyr config.yaml. Minnet är en vanlig Markdown-fil som alltid inkluderas i chatt och skill-körningar.</p><span class="folder">data/settings.json · data/MEMORY.md</span></li>
+    </ol>
+    <h2 class="section-title">Importens steg</h2>
+    <div class="diagram-card"><div class="mermaid">
+flowchart LR
+  file["Fil i inbox"] --> hash{"Samma sökväg + SHA-256 redan klar?"}
+  hash -->|Ja| skip["Hoppa över"]
+  hash -->|Nej| convert["Konvertera och berika"]
+  convert --> md["Skriv Markdown + YAML"]
+  md --> archive["Flytta original till processed/"]
+  archive --> registry["Markera done i registry.json"]
+    </div></div>
+    <div class="highlight-box"><span class="ico">↪</span><div><h3>Befintlig historik följer med</h3><p>En äldre registry.db läses vid första registeranvändningen och migreras till JSON. Originaldatabasen behålls som registry.db.bak. Stoppa gamla app- och watch-processer före uppgraderingen. SQLite används enbart för denna engångsmigrering.</p></div></div>
+  </section>
+
+  <section class="panel" id="panel-skillsvsrag">
+    <p class="eyebrow">Skills & underlag</p><h1 class="page-title">En skill är en funktion – inte ett dokumentindex</h1>
+    <p class="lead">Skillen beskriver vad AI:n ska göra. Du bestämmer vilka dokument den får arbeta med.
+      Det finns ingen automatisk vektorsökning eller agent som själv hämtar relevanta filer i den här implementationen.</p>
+    <div class="diagram-card"><div class="mermaid">
+flowchart LR
+  skill["Välj skill"] --> run["Kör bearbetningen"]
+  docs["Välj KB-filer"] --> run
+  memory["Gemensamt MEMORY.md"] --> run
+  task["Valfri extra instruktion"] --> run
+  run --> result["Granska resultat"]
+  result --> save["Spara till KB om du vill"]
+    </div></div>
+    <div class="card-grid">
+      <article class="feature-card"><h3>Sammanfatta</h3><p>Medföljande skill för att sammanfatta valda dokument. Välj underlaget manuellt eller spara dokumentförval i skillen.</p></article>
+      <article class="feature-card"><h3>Fornnordisk pseudonymisering</h3><p>AI letar efter namn och personuppgifter och ersätter dem med lekfulla fornnordiska namn.</p><p><strong>Roligt exempel – inte säker anonymisering och inte för seriös produktion.</strong></p></article>
+      <article class="feature-card"><h3>Skapa egna skills</h3><p>Ange namn, beskrivning och instruktioner i GUI:t. Redigera sedan SKILL.md med Monaco, precis som dokumenten i kunskapsbanken.</p></article>
+    </div>
+    <div class="highlight-box"><span class="ico">🧩</span><div><h3>Även direkt i chatten</h3><p>Välj en skill i kontextpanelen eller kör vanlig chatt utan skill. Valda dokument, tillfälliga filer och minnet används som underlag. Separata skill-körningar kräver minst ett valt KB-dokument.</p></div></div>
+    <h2 class="section-title">Ett medvetet avgränsat arbetssätt</h2>
+    <p>Dokumentförval sparas i SKILL.md som en YAML-lista under <code>document_paths</code>, med sökvägar relativa till kunskapsbanken. Välj dem vid skapandet eller med <strong>Välj dokument</strong> på skills-sidan. När skillen väljs i chatten markeras dess dokument och körningen startar automatiskt. Utan förval används befintliga markeringar. Minne, historik och tillfälliga filer följer med. Saknade förvalda filer stoppar starten tills dokumentvalet rättats.</p>
+    <p>Manuellt dokumentval gör det tydligt vilket material som skickas till AI:n. Stora underlag måste fortfarande rymmas i modellens kontextfönster. Skills ersätter inte generell informationssökning; de ger återanvändbara instruktioner för bearbetningen.</p>
+  </section>
+
+  <section class="panel" id="panel-gui">
+    <p class="eyebrow">Gränssnittet</p><h1 class="page-title">Från uppladdning till sparat chattresultat</h1>
+    <div class="card-grid">
+      <article class="feature-card"><span class="route">/browse</span><h3>Bläddra och sök</h3><p>Växla mellan kort, lista och tabell med 24, 48 eller 96 artiklar per sida. Sök i hela banken och filtrera på tagg eller filtyp. Taggar har artikelantal, egen sökning och högst 12 visas åt gången.</p></article>
+      <article class="feature-card"><span class="route">/upload · /new</span><h3>Importera eller skriv nytt</h3><p>Ladda upp dokument till inboxen, även flera åt gången, eller skapa ett Markdown-dokument direkt i kunskapsbanken.</p></article>
+      <article class="feature-card"><span class="route">/doc/… · /doc/…/edit</span><h3>Läs och redigera</h3><p>Formaterat YAML-frontmatter, Markdown och Mermaid-diagram. Monaco används för kodredigering, med textfält som reserv om editorn inte laddas.</p></article>
+      <article class="feature-card"><span class="route">/skills · /skills/new</span><h3>Skapa och kör skills</h3><p>Välj dokument inför körningen, granska strömmat resultat och spara det till KB. Import eller dokumentredigering skapar inga skills automatiskt.</p></article>
+      <article class="feature-card"><span class="route">/chat</span><h3>Chatt med kontrollerad kontext</h3><p>Välj KB-dokument, en skill och tillfälliga bilagor. Svaren strömmas och kan stoppas. Färdiga svar formateras som Markdown med Mermaid-diagram, utfällbar diagramkod och kopieringsknappar på kodblock. Dina meddelanden och AI-svar har skilda färger och avsändarmarkeringar.</p></article>
+      <article class="feature-card"><span class="route">Inställningar</span><h3>AI, titel och minne</h3><p>Byt modell eller visningstitel och redigera MEMORY.md i samma dialog. Inställningar sparas på disk utan att chatten behöver laddas om.</p></article>
+    </div>
+    <h2 class="section-title">Chatten använder skärmytan</h2>
+    <p>Den kompakta toppmenyn ger direkt åtkomst till tema, inställningar och hjälp. Övriga sidor samlas i en utfällbar meny på mindre skärmar. Hjälp öppnar den här guiden i en popup, i helskärm på mobil; stäng med krysset eller Escape.</p>
+    <div class="card-grid">
+      <article class="pillar-card"><h3>Separata scrollområden</h3><p>Sidopanel till vänster på desktop, med dokument, skill-val och kontextuppskattning. Konversationen fyller resten av höjden; skrivfältet ligger kvar längst ned.</p></article>
+      <article class="pillar-card"><h3>Mobilpanel</h3><p>På smal skärm öppnas sidopanelen via Kontext & skills. Navigering och inställningar finns i mobilmenyn.</p></article>
+      <article class="pillar-card"><h3>Kontextmätare</h3><p>Visar uppskattad användning för underlag, historik, skill och minne. Cirka fyra tecken per token, med varningsnivåer vid 75 och 90 procent.</p></article>
+    </div>
+    <div class="highlight-box"><span class="ico">📎</span><div><h3>Tillfälliga filer är inte en import</h3><p>Bilagor i chatten konverteras tillfälligt och läggs inte i inbox eller KB. Spara till KB exporterar själva konversationen som Markdown under kunskapsbank/chattar/. Bilagorna kopieras inte, men deras innehåll kan förekomma i svaren. Exportera före omladdning – chatten sparas inte automatiskt.</p></div></div>
+  </section>
+
+  <section class="panel" id="panel-installningar">
+    <p class="eyebrow">AI & minne</p><h1 class="page-title">En gemensam konfiguration på lokal disk</h1>
+    <p>Inställningarna är uppdelade i flikarna AI, Kunskapsbank, Minne och Återställ.</p>
+    <p class="lead">Dialogen har förval för Ollama, LM Studio och OpenAI-kompatibla tjänster.
+      Hämta serverns modellista eller skriv ett modellnamn och testa anslutningen innan du sparar.</p>
+    <div class="card-grid">
+      <article class="feature-card"><h3>Server och modell</h3><p>Bas-URL, API-nyckel, modell och aktivering av AI. Standard: Ollama på http://localhost:11434, modell gemma4:26b. API-klienten använder /v1.</p></article>
+      <article class="feature-card"><h3>Temperatur och systemprompt</h3><p>Temperaturen används i chatt och skill-körningar. Chattens systemprompt kan anpassas; {context} infogar underlaget. Om markören saknas läggs kontexten till sist.</p></article>
+      <article class="feature-card"><h3>Kontextstorlek</h3><p>Angivet tokenantal styr chattens uppskattning. Det ändrar inte serverns faktiska kontextstorlek. Standard är 32 768 tokens.</p></article>
+      <article class="feature-card"><h3>Kunskapsbankens titel</h3><p>Visa exempelvis Demo1 i GUI:t. Projektet heter fortfarande Kunskapstratten och inga dokument, mappar eller register rensas.</p></article>
+    </div>
+    <ol class="layer-list">
+      <li class="layer-item"><h3>config.yaml: grundinställningar</h3><p>Mappar, importinställningar och grundvärden. Börja från config.example.yaml.</p></li>
+      <li class="layer-item"><h3>data/settings.json: GUI-inställningar</h3><p>Överstyr grundvärden för AI och titel, även när CLI:t startas. Sparas på serverns lokala disk, inte i webbläsaren.</p></li>
+      <li class="layer-item"><h3>data/MEMORY.md: gemensamt minne</h3><p>Redigeras manuellt i dialogen och inkluderas i chatt och skill-körningar. AI skriver inte automatiskt över minnet. Minnet räknas med i kontextuppskattningen.</p></li>
+    </ol>
+    <div class="highlight-box"><span class="ico">🔑</span><div><h3>Skydda lokala inställningar</h3><p>API-nycklar lagras i klartext på disk, men returneras inte till webbläsaren. En sparad nyckel följer inte automatiskt med till en annan server. data/ är git-ignorerad. Dela inte inställningsfilen och exponera inte GUI:t publikt.</p></div></div>
+    <div class="highlight-box"><span class="ico">⚠</span><div><h3>Återställning med två bekräftelser</h3><p>En röd knapp kan permanent radera kunskapsbankens .md-filer och allt innehåll i skills, processed och data. Det omfattar även standard-skills, arkiverade original, minne och GUI-inställningar. Godkänn varningen, granska exakta mappar och filantal och lös sedan en mattefråga. Inbox, bilder/övriga KB-filer, loggar, programkod och config.yaml behålls. Ingen automatisk säkerhetskopia skapas. Stoppa andra app- och watch-processer och säkerhetskopiera först.</p></div></div>
+  </section>
+
+  <section class="panel" id="panel-komigang">
+    <p class="eyebrow">Praktiskt</p><h1 class="page-title">Kom igång på fem steg</h1>
+    <ol class="step-list">
+      <li class="step"><span class="num">1</span><div class="body"><h3>Installera</h3><p>Python 3.10+. Skapa gärna en virtuell miljö och installera projektets beroenden.</p><pre>pip install -r requirements.txt</pre></div></li>
+      <li class="step"><span class="num">2</span><div class="body"><h3>Starta gränssnittet</h3><p>Kopiera config.example.yaml till config.yaml om du vill anpassa mappar. GUI:t startar som standard på http://127.0.0.1:5000.</p><pre>python run.py</pre></div></li>
+      <li class="step"><span class="num">3</span><div class="body"><h3>Välj AI och minne</h3><p>Starta din modellserver. Öppna Inställningar, välj modell och testa anslutningen. Spara önskad titel och innehållet i MEMORY.md.</p></div></li>
+      <li class="step"><span class="num">4</span><div class="body"><h3>Ladda upp och bearbeta</h3><p>Ladda upp dokument till inboxen och klicka Uppdatera. Markdown hamnar i KB och originalen i processed/. Inga skills genereras.</p></div></li>
+      <li class="step"><span class="num">5</span><div class="body"><h3>Välj underlag och arbeta</h3><p>Chatta eller kör en skill på valda dokument. Redigera Markdown med Monaco och spara önskade resultat tillbaka till KB.</p></div></li>
+    </ol>
+    <div class="highlight-box"><span class="ico">↪</span><div><h3>Efter uppgradering</h3><p>Starta om appen för att läsa den nya koden. Äldre importhistorik migreras vid nästa registeranvändning, exempelvis med python run.py status. Säkerhetskopian behålls.</p></div></div>
+    <p><a href="https://github.com/yllemo/kunskapstratten" target="_blank" rel="noopener">Projektet på GitHub</a> · Se README.md för installation och detaljer.</p>
+  </section>
+</main>
+
+<footer>Kunskapstratten · lokal fillagring · valfri AI-server</footer>
+
+<script>
+/* ---------- Tema ---------- */
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && window.parent !== window) {
+    window.parent.postMessage('kunskapstratten:close-help', '*');
+  }
+});
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (_) { /* Fungerar även utan lokal lagring. */ }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  let theme = 'light';
+  try { theme = localStorage.getItem('theme') || theme; } catch (_) {}
+  applyTheme(theme);
+});
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+});
+
+/* ---------- Flikar ---------- */
+function renderMermaidIn(panel) {
+  if (!window.mermaid || !panel) return;
+  const nodes = panel.querySelectorAll('.mermaid:not([data-processed])');
+  if (nodes.length) {
+    mermaid.run({ nodes: Array.from(nodes) }).catch(() => {
+      panel.querySelectorAll('.diagram-caption').forEach(el => { el.textContent += ' Diagrammet kunde inte laddas; flödet beskrivs även i texten.'; });
+    });
+  }
+}
+
+document.getElementById('tabbar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + btn.dataset.tab);
+  panel.classList.add('active');
+  renderMermaidIn(panel);
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+});
+
+/* ---------- Mermaid ---------- */
+if (window.mermaid) {
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'base',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: { fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '14px' }
+  });
+  renderMermaidIn(document.querySelector('.panel.active'));
+}
+</script>
+</body>
+</html>

@@ -5,7 +5,8 @@ vilka .md-filer som finns och vad de innehåller).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -37,6 +38,8 @@ def parse_markdown_file(path: Path) -> tuple[dict, str]:
                 meta = yaml.safe_load(parts[1]) or {}
             except yaml.YAMLError:
                 meta = {}
+            if not isinstance(meta, dict):
+                meta = {}
             body = parts[2].lstrip("\n")
             return meta, body
     return {}, text
@@ -44,13 +47,18 @@ def parse_markdown_file(path: Path) -> tuple[dict, str]:
 
 def load_document(kb_root: Path, path: Path) -> Document:
     meta, body = parse_markdown_file(path)
+    tags = meta.get("tags") or []
+    if isinstance(tags, str):
+        tags = [tags]
+    if not isinstance(tags, list):
+        tags = []
     rel = path.relative_to(kb_root).as_posix()
     return Document(
         path=path,
         rel_path=rel,
-        title=meta.get("title") or path.stem,
-        tags=meta.get("tags") or [],
-        summary=meta.get("summary") or "",
+        title=str(meta.get("title") or path.stem),
+        tags=list(dict.fromkeys(str(tag) for tag in tags if tag is not None)),
+        summary=str(meta.get("summary") or ""),
         source_file=meta.get("source_file") or "",
         source_hash=meta.get("source_hash") or "",
         source_type=meta.get("source_type") or "",
@@ -60,7 +68,12 @@ def load_document(kb_root: Path, path: Path) -> Document:
     )
 
 
-def list_documents(kb_root: Path) -> list[Document]:
+@lru_cache(maxsize=2048)
+def _cached_document(root: Path, path: Path, signature: tuple) -> Document:
+    return load_document(root, path)
+
+
+def list_documents(kb_root: Path, cached: bool = False) -> list[Document]:
     """Listar alla .md-dokument i kunskapsbanken (rekursivt, images/ hoppas över)."""
     if not kb_root.exists():
         return []
@@ -69,7 +82,16 @@ def list_documents(kb_root: Path) -> list[Document]:
         rel_parts = p.relative_to(kb_root).parts
         if rel_parts and rel_parts[0] == "images":
             continue
-        docs.append(load_document(kb_root, p))
+        try:
+            if cached:
+                stat = p.stat()
+                doc = _cached_document(kb_root.resolve(), p.resolve(), (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size))
+                docs.append(replace(doc, tags=list(doc.tags), search_excerpt=""))
+            else:
+                docs.append(load_document(kb_root, p))
+        except FileNotFoundError:
+            # Filen kan ha tagits bort medan katalogen lästes.
+            continue
     return docs
 
 

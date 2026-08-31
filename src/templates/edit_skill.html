@@ -4,7 +4,7 @@
 <section class="edit-view">
   <a class="back-link" href="{{ url_for('skills_page') }}">← Tillbaka till skills</a>
   <h1 class="edit-title">Redigerar <code>skills/{{ relpath }}</code></h1>
-  <p class="empty-hint">Detta är en bearbetningsskill. Dokument väljs först när skillen körs.</p>
+  <p class="empty-hint">Dokumentförval sparas i <code>document_paths</code> som relativa .md-sökvägar. Du kan även använda ”Välj dokument” på skills-sidan.</p>
   <p class="empty-hint">Frontmatter måste innehålla <code>name</code> och <code>description</code>. Monaco används på desktop och en lättare textruta på mobil.</p>
   <div id="monacoEditor" class="monaco-host" aria-label="SKILL.md-redigerare"></div>
   <textarea id="editArea" class="edit-textarea editor-fallback" spellcheck="false">{{ raw }}</textarea>

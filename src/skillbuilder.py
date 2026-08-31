@@ -1,7 +1,6 @@
 """Skapar och läser användardefinierade bearbetningsskills.
 
-En skill innehåller en beskrivning och instruktioner. Den binder inte fasta
-dokument; användaren väljer .md-underlag från kunskapsbanken vid varje körning.
+En skill innehåller beskrivning, instruktioner och valfria dokumentförval.
 Kunskapstratten anropar aldrig någon skill-generator.
 """
 from __future__ import annotations
@@ -20,6 +19,25 @@ from .docstore import Document, list_documents
 CUSTOM_SKILLS_DIR = "_custom"
 
 
+def validate_skill_documents(config: Config, paths, *, require_existing=True) -> list[str]:
+    if not isinstance(paths, list) or any(not isinstance(p, str) for p in paths):
+        raise ValueError("document_paths måste vara en lista med relativa .md-sökvägar.")
+    root = config.paths.output.resolve()
+    result = []
+    for value in paths:
+        value = value.replace("\\", "/")
+        path = Path(value)
+        full = (root / path).resolve()
+        if not value or path.is_absolute() or ":" in value or ".." in path.parts or root not in full.parents or path.suffix.lower() != ".md":
+            raise ValueError(f"Ogiltig dokumentsökväg: {value}")
+        if require_existing and not full.is_file():
+            raise ValueError(f"Dokumentet saknas: {value}. Uppdatera skillens dokumentval.")
+        normalized = path.as_posix()
+        if normalized not in result:
+            result.append(normalized)
+    return result
+
+
 def _slugify(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", normalized.casefold()).strip("-")
@@ -36,10 +54,20 @@ def list_custom_skills(config: Config) -> list[dict]:
         if not text.startswith("---"):
             continue
         parts = text.split("---", 2)
+        if len(parts) < 3:
+            continue
         try:
             meta = yaml.safe_load(parts[1]) or {}
         except yaml.YAMLError:
             continue
+        if not isinstance(meta, dict):
+            continue
+        document_error = ""
+        try:
+            document_paths = validate_skill_documents(config, meta.get("document_paths", []), require_existing=False)
+        except ValueError as exc:
+            document_paths = []
+            document_error = str(exc)
         body = parts[2].lstrip() if len(parts) > 2 else ""
         result.append({
             "id": f"custom:{path.parent.name}",
@@ -47,6 +75,8 @@ def list_custom_skills(config: Config) -> list[dict]:
             "name": meta.get("display_name") or meta.get("name") or path.parent.name,
             "description": meta.get("description") or "",
             "instructions": body,
+            "document_paths": document_paths,
+            "document_error": document_error,
             "path": path,
             "rel_path": path.relative_to(config.paths.skills).as_posix(),
         })
@@ -61,7 +91,7 @@ def create_custom_skill(
     instructions: str,
     document_paths: list[str] | None = None,
 ) -> dict:
-    """Skapar en bearbetningsskill. Dokument väljs när skillen körs."""
+    """Skapar en bearbetningsskill med valfria dokumentförval."""
     slug = _slugify(name)
     if not slug:
         raise ValueError("Namnet måste innehålla bokstäver eller siffror.")
@@ -76,6 +106,7 @@ def create_custom_skill(
         "display_name": name.strip(),
         "description": description.strip(),
         "custom": True,
+        "document_paths": validate_skill_documents(config, document_paths or []),
     }
     lines = [
         "---",

@@ -62,7 +62,7 @@ def cmd_status(config: Config, args: argparse.Namespace) -> None:
         print(f"Output:           {config.paths.output.resolve()}")
         print(f"Skills:           {config.paths.skills.resolve()}")
         print(f"Arkiv (klara):    {config.paths.processed_archive.resolve()}")
-        print(f"Register (db):    {config.paths.registry_db.resolve()}")
+        print(f"Register (JSON):  {config.paths.registry_db.with_suffix('.json').resolve()}")
         print(f"Filer i inbox nu: {pending_in_inbox}")
         print("Registerstatus (historik):")
         if not counts:

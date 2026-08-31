@@ -27,7 +27,7 @@ from .config import Config
 from .converter import Converter
 from .docstore import all_tags, list_documents, load_document, parse_markdown_file
 from .pipeline import Pipeline
-from .skillbuilder import create_custom_skill, list_custom_skills
+from .skillbuilder import create_custom_skill, list_custom_skills, validate_skill_documents
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,8 @@ def _build_chat_context(
 ) -> str:
     kb_root = config.paths.output.resolve()
     blocks = []
+    if config.memory().strip():
+        blocks.append("--- MEMORY.md (gemensamt minne) ---\n" + config.memory())
     for rel in context_paths:
         if not isinstance(rel, str):
             continue
@@ -88,7 +90,21 @@ def _build_chat_context(
 def create_app(config: Config) -> Flask:
     config.paths.ensure_exist()
     app = Flask(__name__)
+    from .settings import register_settings
+    register_settings(app, config)
+    from .reset import register_reset
+    register_reset(app, config)
     app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
+
+    @app.route("/help/guide")
+    def help_guide():
+        # Fast fil, aldrig en användarstyrd sökväg eller katalogserver.
+        path = Path(__file__).resolve().parent.parent / "kunskapstratten-koncept.html"
+        if not path.is_file():
+            return Response("Hjälpguiden saknas. Återställ kunskapstratten-koncept.html i projektmappen.", status=404, mimetype="text/plain")
+        response = send_file(path, mimetype="text/html")
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @app.route("/")
     def index():
@@ -96,12 +112,26 @@ def create_app(config: Config) -> Flask:
 
     @app.route("/browse")
     def browse():
-        all_docs = list_documents(config.paths.output)
+        from collections import Counter
+        from math import ceil
+        all_docs = list_documents(config.paths.output, cached=True)
         docs = all_docs
         q = request.args.get("q", "").strip()
         tag = request.args.get("tag", "").strip()
         source_type = request.args.get("type", "").strip()
         sort = request.args.get("sort", "title").strip()
+        view = request.args.get("view", "cards")
+        if view not in ("cards", "list", "table"):
+            view = "cards"
+        per_page = request.args.get("per_page", 24, type=int)
+        if per_page not in (24, 48, 96):
+            per_page = 24
+        tag_query = request.args.get("tq", "").strip()
+        tag_counts = Counter(t for d in all_docs for t in set(d.tags))
+        matching_tags = sorted((t for t in tag_counts if tag_query.casefold() in t.casefold()),
+                               key=lambda t: (-tag_counts[t], t.casefold(), t))
+        tag_pages = max(1, ceil(len(matching_tags) / 12))
+        tag_page = min(tag_pages, max(1, request.args.get("tag_page", 1, type=int)))
 
         if q:
             terms = q.casefold().split()
@@ -125,19 +155,34 @@ def create_app(config: Config) -> Flask:
         }
         if sort not in sorters:
             sort = "title"
-        docs.sort(key=sorters[sort])
+        docs.sort(key=lambda d: (sorters[sort](d), d.rel_path.casefold(), d.rel_path))
+        result_count = len(docs)
+        pages = max(1, ceil(result_count / per_page))
+        page = min(pages, max(1, request.args.get("page", 1, type=int)))
+        start = (page - 1) * per_page
+
+        def browse_url(**changes):
+            params = dict(q=q, tag=tag, type=source_type, sort=sort, view=view,
+                          per_page=per_page, page=page, tq=tag_query, tag_page=tag_page)
+            params.update(changes)
+            return url_for("browse", **{k: v for k, v in params.items() if v != ""})
 
         return render_template(
             "browse.html",
-            docs=docs,
-            tags=all_tags(all_docs),
+            docs=docs[start:start + per_page],
+            tags=matching_tags[(tag_page - 1) * 12:tag_page * 12],
+            tag_counts=tag_counts, tag_count=len(tag_counts), tag_query=tag_query,
+            matching_tag_count=len(matching_tags), tag_page=tag_page, tag_pages=tag_pages,
+            browse_url=browse_url, view=view, per_page=per_page, page=page, pages=pages,
+            page_numbers=sorted({1, pages, *range(max(1, page - 2), min(pages, page + 2) + 1)}),
+            first_result=start + 1 if result_count else 0, last_result=min(start + per_page, result_count),
             q=q,
             active_tag=tag,
             active_type=source_type,
             source_types=sorted({d.source_type or "md" for d in all_docs}),
             sort=sort,
             total_docs=len(all_docs),
-            result_count=len(docs),
+            result_count=result_count,
         )
 
     def _resolve_doc_path(relpath: str):
@@ -281,12 +326,46 @@ def create_app(config: Config) -> Flask:
             create_custom_skill(
                 config, name=name, description=description,
                 instructions=instructions,
+                document_paths=request.form.getlist("documents"),
             )
         except (ValueError, FileExistsError) as exc:
             return render_template(
                 "new_skill.html", docs=docs, form=request.form, error=str(exc),
             ), 409
         return redirect(url_for("skills_page"))
+
+    @app.route("/skills/documents/<slug>", methods=["GET", "POST"])
+    def skill_documents(slug):
+        import hashlib
+        skill = next((s for s in list_custom_skills(config) if s["slug"] == slug), None)
+        if skill is None:
+            return "Skillen hittades inte", 404
+        path = _resolve_skill_path(skill["rel_path"])
+        if path is None:
+            return "Skillen hittades inte", 404
+        raw = path.read_text(encoding="utf-8")
+        version = hashlib.sha256(raw.encode()).hexdigest()
+        docs = list_documents(config.paths.output, cached=True)
+        selected = skill["document_paths"]
+        error = skill["document_error"]
+        status = 200
+        if request.method == "POST":
+            selected = request.form.getlist("documents")
+            try:
+                if request.form.get("version") != version:
+                    raise ValueError("Skillen har ändrats i en annan vy. Ladda om sidan innan du sparar.")
+                selected = validate_skill_documents(config, selected)
+                parts = raw.split("---", 2)
+                meta = yaml.safe_load(parts[1])
+                meta["document_paths"] = selected
+                path.write_text("---\n" + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + "---" + parts[2], encoding="utf-8")
+                return redirect(url_for("skill_documents", slug=slug, saved=1))
+            except ValueError as exc:
+                error, status = str(exc), 400
+        existing = {d.rel_path for d in docs}
+        return render_template("skill_documents.html", skill=skill, docs=docs, selected_documents=selected,
+                               missing_documents=[p for p in selected if p not in existing],
+                               version=version, error=error, saved=request.args.get("saved") == "1"), status
 
     @app.route("/doc/<path:relpath>/edit")
     def edit_doc(relpath):
@@ -346,6 +425,10 @@ def create_app(config: Config) -> Flask:
             return jsonify({"error": f"Ogiltig YAML i frontmatter: {exc}"}), 400
         if not isinstance(meta, dict) or not meta.get("name") or not meta.get("description"):
             return jsonify({"error": "Frontmatter måste innehålla name och description."}), 400
+        try:
+            validate_skill_documents(config, meta.get("document_paths", []), require_existing=False)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
         full_path.write_text(content, encoding="utf-8")
         return jsonify({"ok": True})
 
@@ -401,7 +484,7 @@ def create_app(config: Config) -> Flask:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    temperature=0.2,
+                    temperature=config.ai.temperature,
                     stream=True,
                 )
                 for chunk in stream:
@@ -458,10 +541,14 @@ def create_app(config: Config) -> Flask:
                     "slug": skill["slug"], "name": skill["name"],
                     "description": skill["description"],
                     "instructions": skill["instructions"],
+                    "document_paths": skill["document_paths"],
+                    "document_error": skill["document_error"],
                 }
                 for skill in chat_skills
             ],
             "context_window": config.ai.context_window,
+            "memory": config.memory(),
+            "system_prompt": config.ai.system_prompt or CHAT_SYSTEM_PROMPT,
         }
 
         initial_paths: list[str] = []
@@ -528,8 +615,23 @@ def create_app(config: Config) -> Flask:
                 "error": "Ingen lokal AI konfigurerad. Sätt ai.enabled/base_url/model i config.yaml."
             }), 400
 
+        if data.get("autorun_skill"):
+            auto_skill = next((s for s in list_custom_skills(config) if s["slug"] == skill_slug), None)
+            if auto_skill is None:
+                return jsonify(error="Skillen hittades inte."), 400
+            try:
+                if auto_skill["document_error"]:
+                    raise ValueError(auto_skill["document_error"])
+                saved_paths = validate_skill_documents(config, auto_skill["document_paths"])
+                if saved_paths:
+                    context_paths = saved_paths
+            except ValueError as exc:
+                return jsonify(error=str(exc)), 400
         context_text = _build_chat_context(config, context_paths, temporary_documents)
-        system_prompt = CHAT_SYSTEM_PROMPT.replace("{context}", context_text)
+        prompt = config.ai.system_prompt or CHAT_SYSTEM_PROMPT
+        system_prompt = prompt.replace("{context}", context_text)
+        if "{context}" not in prompt:
+            system_prompt += "\n\n=== KONTEXT ===\n" + context_text
         if skill_slug:
             skill = next((item for item in list_custom_skills(config) if item["slug"] == skill_slug), None)
             if skill is None:
@@ -557,7 +659,7 @@ def create_app(config: Config) -> Flask:
                 stream = client.chat.completions.create(
                     model=config.ai.model,
                     messages=full_messages,
-                    temperature=0.3,
+                    temperature=config.ai.temperature,
                     stream=True,
                 )
                 for chunk in stream:
@@ -571,6 +673,32 @@ def create_app(config: Config) -> Flask:
                 yield f"\n\n[FEL] Kunde inte nå den lokala AI:n: {exc}"
 
         return Response(stream_with_context(generate()), mimetype="text/plain")
+
+    @app.route("/api/chat/export", methods=["POST"])
+    def export_chat():
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify(error="Ogiltig chatt."), 400
+        title = data.get("title")
+        messages = data.get("messages")
+        if not isinstance(title, str) or not title.strip() or len(title) > 120 or not isinstance(messages, list) or not messages:
+            return jsonify(error="Ange titel och minst ett meddelande."), 400
+        parts = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") not in ("user", "assistant") or not isinstance(message.get("content"), str):
+                return jsonify(error="Ogiltigt meddelande."), 400
+            parts.append("## " + ("Du" if message["role"] == "user" else "Assistent") + "\n\n" + message["content"])
+        body = "\n\n".join(parts)
+        if len(body) > 2_000_000:
+            return jsonify(error="Chatten är för stor."), 400
+        folder = config.paths.output / "chattar"
+        folder.mkdir(parents=True, exist_ok=True)
+        metadata = {"title": title.strip(), "source_type": "chat", "created": datetime.now(timezone.utc).isoformat(), "tags": ["chatt"]}
+        import uuid
+        target = folder / ((_slugify(title) or "chatt") + "-" + uuid.uuid4().hex[:12] + ".md")
+        with target.open("x", encoding="utf-8") as stream:
+            stream.write("---\n" + yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False) + "---\n\n" + body + "\n")
+        return jsonify(ok=True, url=url_for("view_doc", relpath=target.relative_to(config.paths.output).as_posix()))
 
     @app.route("/api/reindex", methods=["POST"])
     def api_reindex():

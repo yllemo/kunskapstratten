@@ -5,7 +5,7 @@ paths:
   output: "./kunskapsbank"
   images: "./kunskapsbank/images"
   skills: "./skills"
-  registry_db: "./data/registry.db"
+  registry_file: "./data/registry.json"
   logs: "./logs"
 
 ai:

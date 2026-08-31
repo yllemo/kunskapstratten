@@ -19,6 +19,26 @@ function initNavigation() {
   const nav = document.getElementById("main-nav");
   if (!button || !nav) return;
 
+  function closeNav() {
+    button.setAttribute('aria-expanded', 'false');
+    nav.classList.remove('is-open');
+    button.querySelector('[aria-hidden]').textContent = '☰';
+    button.querySelector('.sr-only').textContent = 'Öppna meny';
+  }
+
+  document.addEventListener('click', event => {
+    if (!nav.contains(event.target) && !button.contains(event.target)) closeNav();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && nav.classList.contains('is-open')) {
+      closeNav();
+      button.focus();
+    }
+  });
+  nav.addEventListener('click', event => {
+    if (event.target.closest('a,button')) closeNav();
+  });
+
   button.addEventListener("click", () => {
     const open = button.getAttribute("aria-expanded") === "true";
     button.setAttribute("aria-expanded", String(!open));
@@ -28,14 +48,32 @@ function initNavigation() {
   });
 
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 760) {
-      button.setAttribute("aria-expanded", "false");
-      nav.classList.remove("is-open");
-      button.querySelector("[aria-hidden]").textContent = "☰";
-    }
+    if (window.innerWidth > 1100) closeNav();
   });
 }
 initNavigation();
+
+function initHelp() {
+  const button = document.getElementById('helpBtn');
+  const dialog = document.getElementById('helpDialog');
+  const frame = document.getElementById('helpFrame');
+  if (!button || !dialog || !frame) return;
+  button.addEventListener('click', () => {
+    if (!frame.hasAttribute('src')) frame.src = frame.dataset.src;
+    dialog.showModal();
+  });
+  document.getElementById('helpClose').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+  });
+  window.addEventListener('message', event => {
+    if (event.source === frame.contentWindow && event.data === 'kunskapstratten:close-help' && dialog.open) dialog.close();
+  });
+  dialog.addEventListener('close', () => button.focus());
+}
+initHelp();
 
 async function postJSON(url, data) {
   const res = await fetch(url, {

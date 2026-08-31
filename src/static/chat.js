@@ -24,7 +24,49 @@
   const chatSendBtn = document.getElementById("chatSendBtn");
   const skillSelect = document.getElementById("chatSkillSelect");
   const skillDescription = document.getElementById("chatSkillDescription");
-  const contextWindow = Number(CHAT_DATA.context_window) || 32768;
+  let contextWindow = Number(CHAT_DATA.context_window) || 32768;
+  document.addEventListener('settings-saved', event => {
+    const settings = event.detail;
+    contextWindow = settings.ai.context_window;
+    CHAT_DATA.memory = settings.memory;
+    CHAT_DATA.system_prompt = settings.ai.system_prompt;
+    chatInput.disabled = chatSendBtn.disabled = !settings.ai.enabled;
+    document.querySelectorAll('.chat-model-label, .chat-meta').forEach(el => { el.textContent = settings.ai.model + ' · ' + settings.ai.base_url; });
+    renderContextMeter();
+  });
+  document.getElementById('toggleContext').onclick = () => {
+    const open = document.getElementById('chatSidebar').classList.toggle('is-open');
+    document.getElementById('toggleContext').setAttribute('aria-expanded', String(open));
+  };
+  document.getElementById('exportChat').onclick = () => {
+    if (streaming || !history.length) {
+      const status = document.getElementById('chatExportStatus');
+      status.hidden = false;
+      status.textContent = streaming ? 'Vänta tills svaret är klart innan du sparar.' : 'Starta en konversation först.';
+      return;
+    }
+    document.getElementById('exportName').value = history[0].content.slice(0, 100);
+    document.getElementById('exportStatus').textContent = '';
+    document.getElementById('exportDialog').showModal();
+  };
+  document.getElementById('exportCancel').onclick = () => document.getElementById('exportDialog').close();
+  document.getElementById('exportForm').onsubmit = async event => {
+    event.preventDefault();
+    event.submitter.disabled = true;
+    const status = document.getElementById('exportStatus');
+    try {
+      const response = await fetch('/api/chat/export', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title:document.getElementById('exportName').value, messages:history})});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      const link = document.createElement('a');
+      link.href = result.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Sparat! Öppna dokumentet';
+      status.replaceChildren(link);
+    } catch(error) { status.textContent = error.message; }
+    finally { event.submitter.disabled = false; }
+  };
 
   function tokenEstimate(text) {
     return Math.ceil((text || "").length / 4);
@@ -36,7 +78,9 @@
     const historyTokens = history.reduce((sum, message) => sum + tokenEstimate(message.content) + 4, 0);
     const skill = skillsBySlug[skillSelect?.value];
     const skillTokens = skill ? tokenEstimate(skill.description + "\n" + skill.instructions) : 0;
-    const used = documentTokens + historyTokens + skillTokens + 200;
+    const memoryTokens = tokenEstimate(CHAT_DATA.memory);
+    const used = documentTokens + historyTokens + skillTokens + memoryTokens + tokenEstimate(CHAT_DATA.system_prompt) + 200;
+    document.getElementById('contextMemory').textContent = memoryTokens.toLocaleString('sv-SE');
     const percent = Math.min(100, Math.round((used / contextWindow) * 100));
     const progress = document.getElementById("contextProgress");
     const fill = document.getElementById("contextMeterFill");
@@ -117,8 +161,27 @@
 
   if (skillSelect) skillSelect.addEventListener("change", () => {
     const skill = skillsBySlug[skillSelect.value];
-    skillDescription.textContent = skill ? skill.description : "Välj en skill för att använda dess instruktioner i chatten.";
+    const status = document.getElementById('chatSkillStatus');
+    status.textContent = '';
+    skillDescription.textContent = skill ? skill.description : "Välj en skill för att markera dess dokument och köra den direkt.";
+    if (!skill || streaming) { renderContextMeter(); return; }
+    if (skill.document_error) { status.textContent = skill.document_error; return; }
+    const paths = skill.document_paths || [];
+    const missing = paths.filter(path => !docsByPath[path]);
+    if (missing.length) {
+      status.textContent = 'Körningen startades inte. Saknade dokument: ' + missing.join(', ') + '. Uppdatera skillens dokumentval.';
+      return;
+    }
+    if (paths.length) {
+      selected.clear();
+      paths.forEach(path => selected.add(path));
+      document.querySelectorAll('.doc-checkbox').forEach(check => { check.checked = selected.has(check.value); });
+      renderCtx();
+    }
     renderContextMeter();
+    if (chatInput.disabled) { status.textContent = 'Aktivera AI i Inställningar och välj skillen igen för att köra.'; return; }
+    status.textContent = `Kör ${skill.name} med ${selected.size} KB-dokument. Historik, minne och tillfälliga filer följer med.`;
+    send(`Kör skillen ”${skill.name}” enligt dess instruktioner på det valda underlaget.`, true);
   });
 
   const tempFileInput = document.getElementById("tempFileInput");
@@ -172,6 +235,10 @@
     const bubble = document.createElement("div");
     bubble.className = "chat-bubble";
     bubble.textContent = text;
+    const label = document.createElement('span');
+    label.className = 'chat-role';
+    label.textContent = role === 'user' ? 'Du' : 'AI · Assistent';
+    wrap.appendChild(label);
     wrap.appendChild(bubble);
     chatScroll.appendChild(wrap);
     chatScroll.scrollTop = chatScroll.scrollHeight;
@@ -179,11 +246,12 @@
   }
 
   function setSending(on) {
+    if (skillSelect) skillSelect.disabled = on;
     chatSendBtn.textContent = on ? "\u25a0" : "\u27a4";
     chatSendBtn.classList.toggle("stop", on);
   }
 
-  async function send(question) {
+  async function send(question, autorunSkill = false) {
     addBubble("user", question);
     history.push({ role: "user", content: question });
     renderContextMeter();
@@ -203,6 +271,7 @@
           context_paths: Array.from(selected),
           temporary_documents: temporaryDocuments,
           skill: skillSelect ? skillSelect.value : "",
+          autorun_skill: autorunSkill,
         }),
         signal: abortCtrl.signal,
       });
@@ -219,11 +288,13 @@
         bubble.textContent = acc;
         chatScroll.scrollTop = chatScroll.scrollHeight;
       }
+      acc += decoder.decode();
       if (acc.trim()) history.push({ role: "assistant", content: acc });
       renderContextMeter();
     } catch (err) {
       if (err.name === "AbortError") {
         acc += (acc ? "\n\n" : "") + "(avbrutet)";
+        history.push({ role: 'assistant', content: acc });
       } else {
         acc = "Fel: " + err.message;
       }
@@ -232,6 +303,12 @@
       streaming = false;
       abortCtrl = null;
       setSending(false);
+      renderContextMeter();
+      const nearBottom = chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 100;
+      if (window.renderChatMarkdown) {
+        await window.renderChatMarkdown(bubble, acc);
+        if (nearBottom) chatScroll.scrollTop = chatScroll.scrollHeight;
+      }
     }
   }
 

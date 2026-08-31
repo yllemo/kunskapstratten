@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Kunskapstratten{% endblock %}</title>
+<title>{% block title %}{{ site_title }}{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='workspace.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
 <script>
   // Sätts innan sidan målas upp så temat inte flimrar vid laddning.
   (function () {
@@ -13,9 +15,9 @@
   })();
 </script>
 </head>
-<body>
+<body class="{{ 'chat-page' if request.endpoint == 'chat_page' else '' }}">
 <header class="site-header">
-  <a class="brand" href="{{ url_for('browse') }}">Kunskapstratten</a>
+  <a class="brand" href="{{ url_for('browse') }}">{{ site_title }}</a>
   <button id="nav-toggle" type="button" class="nav-toggle" aria-expanded="false" aria-controls="main-nav">
     <span aria-hidden="true">☰</span><span class="sr-only">Öppna meny</span>
   </button>
@@ -23,20 +25,30 @@
     <a href="{{ url_for('browse') }}" class="{{ 'is-active' if request.endpoint == 'browse' else '' }}">Bläddra</a>
     <a href="{{ url_for('skills_page') }}" class="{{ 'is-active' if request.endpoint == 'skills_page' else '' }}">Skills</a>
     <a href="{{ url_for('chat_page') }}" class="{{ 'is-active' if request.endpoint == 'chat_page' else '' }}">Chatta</a>
-    <a href="{{ url_for('new_doc') }}" class="{{ 'is-active' if request.endpoint == 'new_doc' else '' }}">Nytt dokument</a>
+    <a href="{{ url_for('new_doc') }}" class="{{ 'is-active' if request.endpoint == 'new_doc' else '' }}" title="Skapa nytt dokument">＋ Nytt</a>
     <a href="{{ url_for('upload_documents') }}" class="{{ 'is-active' if request.endpoint == 'upload_documents' else '' }}">Ladda upp</a>
-    <button id="reindex-btn" type="button" class="btn-secondary" title="Bearbeta inbox och uppdatera skills">Uppdatera</button>
-    <button id="theme-toggle" type="button" class="btn-secondary" aria-label="Växla mellan ljust och mörkt läge">◐</button>
+    <button id="reindex-btn" type="button" class="btn-secondary" title="Bearbeta nya dokument i inboxen">↻ Uppdatera</button>
   </nav>
+  <div class="header-actions">
+    <button id="theme-toggle" type="button" class="header-icon" title="Växla tema" aria-label="Växla mellan ljust och mörkt läge">◐</button>
+    <button id="settingsBtn" type="button" class="header-icon" title="Inställningar" aria-label="Inställningar">⚙</button>
+    <button id="helpBtn" type="button" class="header-help" aria-label="Hjälp" aria-haspopup="dialog" title="Hjälp – så fungerar Kunskapstratten"><span aria-hidden="true">?</span><span class="help-label">Hjälp</span></button>
+  </div>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <span>Kunskapstratten · körs lokalt på {{ request.host }}</span>
+  <span>{{ site_title }} · körs lokalt på {{ request.host }}</span>
 </footer>
 <div id="toast" class="toast" role="status" hidden></div>
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="help-dialog-head"><h2 id="helpTitle">Hjälp · Kunskapstratten</h2><button id="helpClose" type="button" class="header-icon" aria-label="Stäng hjälp" autofocus>✕</button></div>
+  <iframe id="helpFrame" title="Guide till Kunskapstratten" data-src="{{ url_for('help_guide') }}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
+</dialog>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+{% include "settings.html" %}
+<script src="{{ url_for('static', filename='settings.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

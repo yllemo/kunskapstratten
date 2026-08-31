@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Skapa skill – Kunskapstratten{% endblock %}
+{% block title %}Skapa skill – {{ site_title }}{% endblock %}
 {% block content %}
 <section class="form-page">
   <a class="back-link" href="{{ url_for('skills_page') }}">← Skills</a>
   <div class="page-heading">
     <div>
       <h1>Skapa egen skill</h1>
-      <p>Beskriv en återanvändbar bearbetningsfunktion. Dokumenten väljs när skillen körs.</p>
+      <p>Beskriv en återanvändbar bearbetningsfunktion och välj gärna dokumentförval.</p>
     </div>
   </div>
   {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
@@ -22,6 +22,8 @@
         <textarea name="instructions" rows="8" placeholder="Beskriv hur agenten ska arbeta med underlaget…">{{ form.get('instructions', '') if form else '' }}</textarea>
       </label>
     </div>
+    {% set selected_documents = form.getlist('documents') if form else [] %}
+    {% include "skill_document_picker.html" %}
     <div class="edit-actions">
       <button class="btn-primary" type="submit">Skapa skill</button>
       <a class="btn-secondary" href="{{ url_for('skills_page') }}">Avbryt</a>

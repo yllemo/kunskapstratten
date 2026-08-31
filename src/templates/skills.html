@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Skills – Kunskapstratten{% endblock %}
+{% block title %}Skills – {{ site_title }}{% endblock %}
 {% block content %}
 <section class="skills-view">
   <div class="page-heading">
     <div>
       <h1>Bearbetningsskills</h1>
-      <p class="skills-intro">Skills är återanvändbara funktioner som bearbetar de dokument du väljer när skillen körs. Kunskapstratten skapar inga skills automatiskt.</p>
+      <p class="skills-intro">Skills bearbetar valda dokument. Spara dokumentförval med ”Välj dokument” för automatisk start när skillen väljs i chatten. Kunskapstratten skapar inga skills automatiskt.</p>
     </div>
     <a class="btn-primary button-link" href="{{ url_for('new_skill') }}">Skapa skill</a>
   </div>
@@ -17,8 +17,10 @@
       <h3>{{ skill.name }}</h3>
       <p class="skill-path"><code>skills/_custom/{{ skill.slug }}/SKILL.md</code></p>
       <p class="skill-description">{{ skill.description }}</p>
+      <p>{{ skill.document_paths|length }} förvalda dokument{% if skill.document_error %} · Ogiltiga dokumentval – redigera dem{% endif %}</p>
       <div class="skill-actions">
         <a class="btn-primary button-link" href="{{ url_for('run_skill_page', slug=skill.slug) }}">Kör skill</a>
+        <a class="btn-secondary button-link" href="{{ url_for('skill_documents', slug=skill.slug) }}">Välj dokument</a>
         <a class="btn-secondary skill-chat-link" href="{{ url_for('edit_skill', relpath=skill.rel_path) }}">Redigera kod</a>
       </div>
     </article>

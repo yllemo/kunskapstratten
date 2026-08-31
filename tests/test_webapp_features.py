@@ -96,7 +96,7 @@ class WebappFeatureTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse((self.config.paths.inbox / "payload.exe").exists())
 
-    def test_create_processing_skill_without_fixed_documents(self):
+    def test_create_processing_skill_with_document_presets(self):
         response = self.client.post(
             "/skills/new",
             data={
@@ -109,8 +109,9 @@ class WebappFeatureTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         skill_path = self.config.paths.skills / "_custom" / "min-radgivare" / "SKILL.md"
         content = skill_path.read_text(encoding="utf-8")
-        self.assertNotIn("document_paths", content)
-        self.assertNotIn("alpha.md", content)
+        self.assertIn("document_paths", content)
+        self.assertIn("alpha.md", content)
+        self.assertEqual(list_custom_skills(self.config)[0]["document_paths"], ["alpha.md"])
         self.assertIn("Läs dokumentet noggrant", list_custom_skills(self.config)[0]["instructions"])
 
     def test_edit_custom_skill_code_with_validation(self):

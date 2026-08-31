@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Kör {{ skill.name }} – Kunskapstratten{% endblock %}
+{% block title %}Kör {{ skill.name }} – {{ site_title }}{% endblock %}
 {% block content %}
 <section class="skill-run-page">
   <a class="back-link" href="{{ url_for('skills_page') }}">← Skills</a>
@@ -15,7 +15,7 @@
       <div id="runDocList" class="document-picker-list">
         {% for doc in docs %}
         <label data-search="{{ (doc.title ~ ' ' ~ doc.rel_path ~ ' ' ~ doc.tags|join(' '))|lower }}">
-          <input type="checkbox" value="{{ doc.rel_path }}">
+          <input type="checkbox" value="{{ doc.rel_path }}" {{ 'checked' if doc.rel_path in skill.document_paths else '' }}>
           <span><strong>{{ doc.title }}</strong><small>{{ doc.rel_path }}</small></span>
         </label>
         {% else %}<p class="empty-hint">Kunskapsbanken saknar dokument.</p>{% endfor %}
@@ -58,6 +58,7 @@
   let controller = null;
   function updateCount() { count.textContent = `${checks.filter(c => c.checked).length} dokument valda`; }
   checks.forEach(c => c.addEventListener("change", updateCount));
+  updateCount();
   filter.addEventListener("input", () => {
     const query = filter.value.trim().toLowerCase();
     document.querySelectorAll("#runDocList > label").forEach(row => { row.hidden = !row.dataset.search.includes(query); });

@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Chatta – Kunskapstratten{% endblock %}
+{% block title %}Chatta – {{ site_title }}{% endblock %}
 {% block content %}
 <div class="chat-layout">
-  <aside class="chat-sidebar">
+  <aside class="chat-sidebar" id="chatSidebar">
     <div class="chat-sidebar-scroll">
       <div class="section-title">Aktiv skill</div>
       <select id="chatSkillSelect" class="chat-skill-select">
         <option value="">Ingen skill – vanlig chatt</option>
         {% for skill in chat_skills %}<option value="{{ skill.slug }}">{{ skill.name }}</option>{% endfor %}
       </select>
-      <p id="chatSkillDescription" class="chat-sidebar-hint">Välj en skill för att använda dess instruktioner i chatten.</p>
+      <p id="chatSkillDescription" class="chat-sidebar-hint">Välj en skill för att markera dess dokument och köra den direkt. Befintlig chatthistorik och tillfälliga filer följer med.</p>
+      <p id="chatSkillStatus" class="chat-sidebar-hint" role="status"></p>
 
       <div class="section-title">Lägg till dokument</div>
       {% if docs %}
@@ -61,6 +62,7 @@
           <span>Underlag <strong id="contextDocs">0</strong></span>
           <span>Konversation <strong id="contextHistory">0</strong></span>
           <span>Skill <strong id="contextSkill">0</strong></span>
+          <span>Minne <strong id="contextMemory">0</strong></span>
         </div>
         <p class="chat-sidebar-hint">Grov uppskattning: cirka fyra tecken per token. Modellens faktiska tokenisering kan skilja sig.</p>
       </section>
@@ -68,16 +70,18 @@
   </aside>
 
   <div class="chat-main">
+    <div class="chat-toolbar"><button type="button" class="btn-secondary" id="toggleContext" aria-controls="chatSidebar" aria-expanded="false">☰ Kontext & skills</button><span class="chat-model-label">{{ ai_model_label }}</span><button type="button" id="exportChat" class="btn-secondary">Spara till KB</button></div>
+    <p id="chatExportStatus" role="status" hidden></p>
     <div class="chat-scroll" id="chatScroll">
       <div class="empty-state chat-empty" id="chatEmpty">
         <p class="empty-title">Chatta med kunskapsbanken</p>
         <p class="empty-hint">
           Lägg till dokument, en tillfällig fil eller välj en skill i sidopanelen,
           skriv sedan din fråga nedan. Svaret genereras av samma lokala AI
-          som resten av verktyget använder (inställd i <code>config.yaml</code>).
+          som resten av verktyget använder. Byt modell under Inställningar.
         </p>
         {% if not ai_configured %}
-        <p class="empty-hint chat-warning">Ingen lokal AI konfigurerad i config.yaml (ai.enabled / ai.base_url / ai.model).</p>
+        <p class="empty-hint chat-warning">Aktivera AI och välj modell under Inställningar.</p>
         {% endif %}
       </div>
     </div>
@@ -88,10 +92,14 @@
     <p class="chat-meta">{{ ai_model_label }}</p>
   </div>
 </div>
+<dialog id="exportDialog" class="settings-dialog" aria-labelledby="exportTitle"><form id="exportForm" class="settings-body"><h2 id="exportTitle">Spara chatten till kunskapsbanken</h2><p>Hela konversationen sparas som Markdown. Tillfälliga bilagor kopieras inte, men deras innehåll kan finnas i svaren.</p><label class="settings-field">Titel<input id="exportName" maxlength="120" required></label><button type="button" id="exportCancel" class="btn-secondary">Avbryt</button> <button type="submit" class="btn-primary">Spara</button><p id="exportStatus" role="status"></p></form></dialog>
 
 <script id="chat-data" type="application/json">{{ chat_data | tojson }}</script>
 <script>window.INITIAL_SELECTION = {{ initial_paths | tojson }};</script>
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@15/lib/marked.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="{{ url_for('static', filename='chat-renderer.js') }}"></script>
 <script src="{{ url_for('static', filename='chat.js') }}"></script>
 {% endblock %}

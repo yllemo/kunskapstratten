@@ -1,0 +1,31 @@
+<fieldset class="skill-document-picker">
+  <legend>Förvalda KB-dokument</legend>
+  <p class="empty-hint">Sparas som <code>document_paths</code> i SKILL.md. När skillen väljs i chatten markeras dessa filer och körningen startar direkt. Utan förval används chattens nuvarande dokumentval.</p>
+  <input type="search" id="skillDocumentFilter" placeholder="Sök titel, tagg eller sökväg…" aria-label="Filtrera skillens dokument">
+  <p id="skillDocumentCount" role="status"></p>
+  <div class="document-picker-list" id="skillDocumentList">
+    {% for doc in docs %}
+    <label data-search="{{ (doc.title ~ ' ' ~ doc.rel_path ~ ' ' ~ doc.tags|join(' '))|lower }}">
+      <input type="checkbox" name="documents" value="{{ doc.rel_path }}" {{ 'checked' if doc.rel_path in selected_documents else '' }}>
+      <span><strong>{{ doc.title }}</strong><small>{{ doc.rel_path }}</small></span>
+    </label>
+    {% endfor %}
+    {% for path in missing_documents|default([]) %}
+    <label data-search="{{ path|lower }}"><input type="checkbox" name="documents" value="{{ path }}" checked><span><strong>Saknas – avmarkera för att ta bort</strong><small>{{ path }}</small></span></label>
+    {% endfor %}
+  </div>
+  {% if not docs %}<p>Inga dokument i kunskapsbanken ännu.</p>{% endif %}
+</fieldset>
+<script>
+(() => {
+  const rows = [...document.querySelectorAll('#skillDocumentList label')];
+  const count = document.getElementById('skillDocumentCount');
+  const update = () => { count.textContent = rows.filter(row => row.querySelector('input').checked).length + ' dokument valda'; };
+  rows.forEach(row => row.querySelector('input').addEventListener('change', update));
+  document.getElementById('skillDocumentFilter').addEventListener('input', event => {
+    const query = event.target.value.toLowerCase().trim();
+    rows.forEach(row => { row.hidden = !row.dataset.search.includes(query); });
+  });
+  update();
+})();
+</script>

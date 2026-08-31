@@ -52,5 +52,4 @@ skills/*
 # Temporary test dependencies used by local verification
 .test-deps/
 
-# Local design prototype; maintained UI lives in src/templates + src/static
-kunskapsbank-koncept.html
+# kunskapstratten-koncept.html is bundled as the GUI help guide.

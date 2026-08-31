@@ -1,0 +1,60 @@
+<dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+  <form id="settingsForm">
+    <div class="settings-head"><h2 id="settingsTitle">AI & kunskapsbank</h2><button type="button" id="settingsClose" class="btn-secondary" aria-label="Stäng inställningar">✕</button></div>
+    <div class="settings-tabs" role="tablist" aria-label="Inställningskategorier">
+      <button type="button" role="tab" id="tab-ai" aria-controls="panel-ai" aria-selected="true">AI</button>
+      <button type="button" role="tab" id="tab-bank" aria-controls="panel-bank" aria-selected="false" tabindex="-1">Kunskapsbank</button>
+      <button type="button" role="tab" id="tab-memory" aria-controls="panel-memory" aria-selected="false" tabindex="-1">Minne</button>
+      <button type="button" role="tab" id="tab-reset" aria-controls="panel-reset" aria-selected="false" tabindex="-1">Återställ</button>
+    </div>
+    <div class="settings-body">
+      <section role="tabpanel" id="panel-bank" aria-labelledby="tab-bank" hidden>
+      <label class="settings-field">Kunskapsbankens titel<input id="kbTitle" maxlength="120" required></label>
+      <p class="settings-help">Ändrar visningsnamnet, inte projektet, mapparna eller innehållet.</p>
+      </section>
+      <section role="tabpanel" id="panel-ai" aria-labelledby="tab-ai">
+      <div class="preset-tabs" aria-label="AI-leverantör">
+        <button type="button" data-provider="openai">OpenAI-kompatibel</button><button type="button" data-provider="lmstudio">LM Studio</button><button type="button" data-provider="ollama">Ollama</button>
+      </div>
+      <p id="providerNote" class="settings-note"></p>
+      <label><input type="checkbox" id="aiEnabled"> Använd AI</label>
+      <label class="settings-field">Bas-URL<input id="aiBaseUrl" type="url" required></label>
+      <label class="settings-field">API-nyckel<input id="aiApiKey" type="password" autocomplete="off" placeholder="Lämna tomt för att behålla sparad nyckel"></label>
+      <label><input type="checkbox" id="clearApiKey"> Ta bort sparad API-nyckel</label>
+      <p class="settings-help">Sparas på serverns lokala disk i data/settings.json, inte i webbläsaren. Filen är inte krypterad och ska inte delas.</p>
+      <label class="settings-field">Modell</label>
+      <div class="model-row"><select id="aiModelSelect" aria-label="Tillgängliga modeller"><option value="">— skriv eller hämta —</option></select><button id="fetchModels" type="button" class="btn-secondary">Hämta</button></div>
+      <input id="aiModel" aria-label="Modellnamn" placeholder="gemma4:26b" required>
+      <label class="settings-field">Temperatur: <output id="temperatureValue">0.3</output><input id="aiTemperature" type="range" min="0" max="1" step="0.05"></label>
+      <label class="settings-field">Kontextfönster (tokens)<input id="aiContextWindow" type="number" min="256" max="10000000" required></label>
+      <p class="settings-help">Används för uppskattningen i chatten. Ändrar inte modellserverns kontextstorlek.</p>
+      <label class="settings-field">Systemprompt för chatt<textarea id="aiSystemPrompt" rows="5" placeholder="Tomt = standardprompt. {context} infogar minne och valda dokument."></textarea></label>
+      <button id="testConnection" type="button" class="btn-secondary">Testa anslutning</button>
+      </section>
+      <section role="tabpanel" id="panel-memory" aria-labelledby="tab-memory" hidden>
+      <label class="settings-field">MEMORY.md<textarea id="kbMemory" rows="7" maxlength="200000" placeholder="Gemensamma fakta och instruktioner som alltid följer med i chatt och skill-körningar."></textarea></label>
+      <p class="settings-help">Sparas som data/MEMORY.md. Du styr innehållet; AI skriver inte automatiskt över minnet.</p>
+      </section>
+      <section role="tabpanel" id="panel-reset" aria-labelledby="tab-reset" hidden>
+        <div class="reset-warning">
+          <h3>Radera innehållet och börja om</h3>
+          <p>Tar permanent bort alla Markdown-filer i kunskapsbanken och allt innehåll i skills, processed och data – inklusive standard-skills, originalarkiv, importhistorik, MEMORY.md och sparade GUI-inställningar.</p>
+          <p><strong>Ingen papperskorg eller automatisk säkerhetskopia.</strong> Säkerhetskopiera själv före radering.</p>
+          <p>Inbox, bilder/övriga filer i kunskapsbanken, loggar, programkod och config.yaml behålls. AI återgår till grundinställningarna. Innehåll i inbox kan importeras igen.</p>
+        </div>
+        <label class="reset-consent"><input type="checkbox" id="resetConsent"> Jag godkänner permanent radering och har stoppat andra app- och watch-processer som använder dessa mappar.</label>
+        <button type="button" id="resetPrepare" class="btn-secondary" disabled>Granska raderingen och hämta mattefråga</button>
+        <div id="resetVerification" hidden>
+          <p id="resetSummary"></p>
+          <ul id="resetTargets"></ul>
+          <label class="settings-field"><span id="resetQuestion"></span><input id="resetAnswer" type="text" inputmode="numeric" autocomplete="off" aria-label="Svar på mattefrågan"></label>
+          <p class="settings-help">Frågan gäller i fem minuter. Fel svar kräver en ny fråga.</p>
+          <button type="button" class="btn-danger" id="resetExecute" disabled>Radera allt angivet innehåll permanent</button>
+        </div>
+        <p id="resetStatus" role="status"></p>
+      </section>
+      <p id="settingsStatus" role="status"></p>
+    </div>
+    <div class="settings-foot"><button type="button" id="settingsCancel" class="btn-secondary">Avbryt</button><button type="submit" id="settingsSave" class="btn-primary">Spara</button></div>
+  </form>
+</dialog>
