@@ -6,6 +6,8 @@ Kunskapstratten är en Python-baserad webbapp som omvandlar dokument till en
 filbaserad kunskapsbank i Markdown. Bläddra bland artiklar, chatta med valda
 underlag och använd återanvändbara skills för att bearbeta innehållet.
 
+![Kunskapstratten – översikt](kunskapstratten.png)
+
 > **Lokalt verktyg utan inbyggd autentisering.** Behåll servern på
 > `127.0.0.1`. Exponera inte GUI:t eller användardata publikt utan ett eget
 > autentiserings- och TLS-lager. Väljer du en extern AI-server skickas
