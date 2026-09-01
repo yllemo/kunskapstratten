@@ -2,41 +2,65 @@
 {% block title %}Bläddra – {{ site_title }}{% endblock %}
 {% macro document_tags(d) %}
 <div class="card-tags">
-  {% for t in d.tags[:3] %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}
+  {% for t in d.tags[:3] %}<a href="{{ browse_url(tag=t, page=1) }}" class="tag-chip small" aria-label="Visa artiklar med taggen {{ t }}">#{{ t }}</a>{% endfor %}
   {% if d.tags|length > 3 %}<span class="tag-chip small" title="{{ d.tags[3:]|join(', ') }}">+{{ d.tags|length - 3 }} taggar</span>{% endif %}
 </div>
 {% endmacro %}
 {% block content %}
+<header class="browse-page-head">
+  <div>
+    <h1>Kunskapsbanken</h1>
+    <p>{{ total_docs }} dokument</p>
+  </div>
+  <div class="page-actions" aria-label="Skapa eller lägg till innehåll">
+    <a class="btn-secondary button-link" href="{{ url_for('upload_documents') }}">⇧ Ladda upp</a>
+    <a class="btn-primary button-link" href="{{ url_for('new_doc') }}">＋ Nytt dokument</a>
+  </div>
+</header>
 <section class="index-toolbar">
   <form method="get" class="search-form" action="{{ url_for('browse') }}">
     <input type="hidden" name="view" value="{{ view }}">
     {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
-    <input type="text" name="q" value="{{ q }}" aria-label="Sök artiklar" placeholder="Sök i titel, metadata och hela dokumentet…">
-    <select name="type" aria-label="Filtyp">
-      <option value="">Alla typer</option>
-      {% for type in source_types %}<option value="{{ type }}" {{ 'selected' if active_type == type else '' }}>{{ type }}</option>{% endfor %}
-    </select>
-    <select name="sort" aria-label="Sortering">
-      {% for value, label in [('title','Titel A–Ö'),('newest','Senast ändrad'),('oldest','Äldst ändrad'),('path','Sökväg')] %}
-      <option value="{{ value }}" {{ 'selected' if sort == value else '' }}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <select name="per_page" aria-label="Artiklar per sida">
-      {% for size in [24,48,96] %}<option value="{{ size }}" {{ 'selected' if per_page == size else '' }}>{{ size }} per sida</option>{% endfor %}
-    </select>
-    <button type="submit" class="btn-primary">Sök</button>
+    <div class="search-primary">
+      <input type="search" name="q" value="{{ q }}" aria-label="Sök artiklar" placeholder="Sök i titel, metadata och hela dokumentet…">
+      <button type="submit" class="btn-primary">⌕ <span>Sök</span></button>
+    </div>
+    <div class="browse-quickbar">
+      <p class="toolbar-count">Visar {{ first_result }}–{{ last_result }} av {{ result_count }} träffar</p>
+      <nav class="view-switch" aria-label="Visningsläge">
+        {% for value, label in [('cards','▦ Kort'),('list','☷ Lista'),('table','▤ Tabell')] %}
+        <a href="{{ browse_url(view=value) }}" class="{{ 'is-active' if view == value else '' }}" {% if view == value %}aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+    <details class="filter-panel" {{ 'open' if active_type else '' }}>
+      <summary>Filter och sortering{% if active_type %} <span class="count-badge">aktivt</span>{% endif %}</summary>
+      <div class="filter-controls">
+        <label>Typ
+          <select name="type">
+            <option value="">Alla typer</option>
+            {% for type in source_types %}<option value="{{ type }}" {{ 'selected' if active_type == type else '' }}>{{ type }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Sortera
+          <select name="sort">
+            {% for value, label in [('title','Titel A–Ö'),('newest','Senast ändrad'),('oldest','Äldst ändrad'),('path','Sökväg')] %}
+            <option value="{{ value }}" {{ 'selected' if sort == value else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Visa
+          <select name="per_page">
+            {% for size in [24,48,96] %}<option value="{{ size }}" {{ 'selected' if per_page == size else '' }}>{{ size }} per sida</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="btn-secondary filter-submit">Tillämpa</button>
+        {% if q or active_tag or active_type %}<a class="clear-filters" href="{{ url_for('browse',view=view,per_page=per_page,sort=sort) }}">Rensa filter</a>{% endif %}
+      </div>
+    </details>
   </form>
 
-  <div class="browse-heading">
-    <p class="toolbar-count">Visar {{ first_result }}–{{ last_result }} av {{ result_count }} träffar · {{ total_docs }} artiklar totalt</p>
-    <nav class="view-switch" aria-label="Visningsläge">
-      {% for value, label in [('cards','Kort'),('list','Lista'),('table','Tabell')] %}
-      <a href="{{ browse_url(view=value) }}" class="{{ 'is-active' if view == value else '' }}" {% if view == value %}aria-current="true"{% endif %}>{{ label }}</a>
-      {% endfor %}
-    </nav>
-  </div>
-
-  <details class="browse-tags" open>
+  <details class="browse-tags" {{ 'open' if active_tag or tag_query else '' }}>
     <summary>Taggar <span class="count-badge">{{ tag_count }}</span> <span class="tag-note">antal artiklar per tagg i hela banken</span></summary>
     <form method="get" class="tag-search" action="{{ url_for('browse') }}">
       {% for name, value in [('q',q),('tag',active_tag),('type',active_type),('sort',sort),('view',view),('per_page',per_page),('page',page)] %}
@@ -64,7 +88,6 @@
   {% if q or active_tag or active_type %}
   <div class="active-filters">
     {% if active_tag %}<a class="tag-chip is-active" href="{{ browse_url(tag='',page=1) }}" aria-label="Ta bort taggfiltret {{ active_tag }}">#{{ active_tag }} ×</a>{% endif %}
-    <a href="{{ url_for('browse',view=view,per_page=per_page,sort=sort) }}">Rensa artikelfilter</a>
   </div>
   {% endif %}
 </section>
@@ -79,20 +102,20 @@
 <table class="browse-table">
   <thead><tr><th scope="col">Artikel</th><th scope="col">Taggar</th><th scope="col">Typ</th></tr></thead>
   <tbody>{% for d in docs %}
-    <tr><td><a class="article-title" href="{{ url_for('view_doc',relpath=d.rel_path) }}">{{ d.title }}</a><span class="article-path">{{ d.rel_path }}</span>{% if d.search_excerpt %}<p class="browse-excerpt">{{ d.search_excerpt }}</p>{% endif %}</td><td>{{ document_tags(d) }}</td><td><span class="stamp">{{ d.source_type or 'md' }}</span></td></tr>
+    <tr><td><a class="article-title preview-trigger" data-preview-url="{{ url_for('doc_preview',relpath=d.rel_path) }}" href="{{ url_for('view_doc',relpath=d.rel_path) }}">{{ d.title }}</a><span class="article-path">{{ d.rel_path }}</span>{% if d.search_excerpt %}<p class="browse-excerpt">{{ d.search_excerpt }}</p>{% endif %}</td><td>{{ document_tags(d) }}</td><td><span class="stamp">{{ d.source_type or 'md' }}</span></td></tr>
   {% endfor %}</tbody>
 </table>
 </div>
 {% else %}
 <div class="{{ 'card-grid browse-cards' if view == 'cards' else 'browse-list' }}">
   {% for d in docs %}
-  <a class="doc-card {{ 'browse-list-item' if view == 'list' else '' }}" href="{{ url_for('view_doc',relpath=d.rel_path) }}">
-    <div class="article-content"><h2>{{ d.title }}</h2><span class="article-path">{{ d.rel_path }}</span>
+  <article class="doc-card {{ 'browse-list-item' if view == 'list' else '' }}">
+    <a class="article-content preview-trigger" data-preview-url="{{ url_for('doc_preview',relpath=d.rel_path) }}" href="{{ url_for('view_doc',relpath=d.rel_path) }}"><h2>{{ d.title }}</h2><span class="article-path">{{ d.rel_path }}</span>
     {% if d.search_excerpt %}<p class="card-summary search-excerpt">{{ d.search_excerpt }}</p>
-    {% elif d.summary %}<p class="card-summary">{{ d.summary }}</p>{% endif %}</div>
+    {% elif d.summary %}<p class="card-summary">{{ d.summary }}</p>{% endif %}</a>
     {{ document_tags(d) }}
     <div class="card-footer"><span class="stamp">{{ d.source_type or 'md' }}</span></div>
-  </a>
+  </article>
   {% endfor %}
 </div>
 {% endif %}
@@ -108,12 +131,12 @@
   <span>Sida {{ page }} av {{ pages }}</span>
 </nav>
 {% endif %}
+<aside id="articlePreview" class="article-preview" data-enabled="{{ preview_enabled|tojson }}" data-browse-url="{{ url_for('browse') }}" role="dialog" aria-modal="false" aria-labelledby="previewTitle" hidden>
+  <div class="preview-head"><div><span class="preview-eyebrow">Snabbförhandsvisning</span><h2 id="previewTitle">Laddar…</h2></div><button id="previewClose" class="preview-close" type="button" aria-label="Stäng förhandsvisning">✕</button></div>
+  <div id="previewContent" class="preview-content" aria-live="polite"></div>
+  <div class="preview-actions"><a id="previewEdit" class="btn-secondary button-link" href="#">Redigera</a><a id="previewChat" class="btn-secondary button-link" href="#">Chatta</a><a id="previewOpen" class="btn-primary button-link" href="#">Öppna dokument</a></div>
+</aside>
 {% endblock %}
 {% block scripts %}
-<script>
-  // På mobil får artiklarna företräde; taggarna öppnas vid behov.
-  if (window.matchMedia('(max-width: 720px)').matches && !{{ (tag_query != '')|tojson }}) {
-    document.querySelector('.browse-tags').open = false;
-  }
-</script>
+<script src="{{ url_for('static', filename='browse-preview.js') }}"></script>
 {% endblock %}

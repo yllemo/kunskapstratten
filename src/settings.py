@@ -18,7 +18,7 @@ def register_settings(app, config):
 
     @app.context_processor
     def site_settings():
-        return {"site_title": config.title}
+        return {"site_title": config.title, "preview_enabled": config.gui.preview_enabled}
 
     def validated(data, require_model=True):
         if not isinstance(data, dict) or not isinstance(data.get("ai"), dict):
@@ -58,13 +58,14 @@ def register_settings(app, config):
         if request.method == "GET":
             ai = asdict(config.ai)
             ai["has_api_key"] = bool(ai.pop("api_key") not in ("", "not-needed"))
-            return jsonify(title=config.title, ai=ai, memory=config.memory())
+            return jsonify(title=config.title, ai=ai, memory=config.memory(), preview_enabled=config.gui.preview_enabled)
         data = request.get_json(silent=True)
         try:
             ai = validated(data)
             title = data.get("title", "").strip()
             memory = data.get("memory", "")
-            if not title or len(title) > 120 or not isinstance(memory, str) or len(memory) > 200000:
+            preview_enabled = data.get("preview_enabled", config.gui.preview_enabled)
+            if not title or len(title) > 120 or not isinstance(memory, str) or len(memory) > 200000 or not isinstance(preview_enabled, bool):
                 raise ValueError("Ange en titel (max 120 tecken) och minne (max 200 000 tecken).")
         except (ValueError, TypeError, AttributeError) as exc:
             return jsonify(error=str(exc)), 400
@@ -80,9 +81,10 @@ def register_settings(app, config):
         finally:
             if os.path.exists(name):
                 os.unlink(name)
-        atomic_json(config.settings_path, {"version": 1, "title": title, "ai": asdict(ai)})
+        atomic_json(config.settings_path, {"version": 1, "title": title, "ai": asdict(ai), "gui": {"preview_enabled": preview_enabled}})
         config.ai = ai
         config.title = title
+        config.gui.preview_enabled = preview_enabled
         return jsonify(ok=True)
 
     @app.route("/api/settings/<action>", methods=["POST"])

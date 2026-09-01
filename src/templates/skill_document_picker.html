@@ -1,6 +1,6 @@
 <fieldset class="skill-document-picker">
   <legend>Förvalda KB-dokument</legend>
-  <p class="empty-hint">Sparas som <code>document_paths</code> i SKILL.md. När skillen väljs i chatten markeras dessa filer och körningen startar direkt. Utan förval används chattens nuvarande dokumentval.</p>
+  <p class="empty-hint">Sparas som <code>document_paths</code> i SKILL.md. När skillen väljs i chatten markeras dessa filer; skillen körs först när nästa prompt skickas. Utan förval används chattens nuvarande dokumentval.</p>
   <input type="search" id="skillDocumentFilter" placeholder="Sök titel, tagg eller sökväg…" aria-label="Filtrera skillens dokument">
   <p id="skillDocumentCount" role="status"></p>
   <div class="document-picker-list" id="skillDocumentList">

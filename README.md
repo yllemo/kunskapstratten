@@ -26,7 +26,7 @@ underlag och använd återanvändbara skills för att bearbeta innehållet.
 - **Chatt:** valda KB-filer, tillfälliga bilagor, kontextuppskattning,
   Mermaid-diagram, kopierbara kodblock och export till kunskapsbanken.
 - **Skills med dokumentförval:** skapa och redigera instruktioner och välj
-  tillhörande filer i GUI:t. Skillval i chatten startar körningen automatiskt.
+  tillhörande filer i GUI:t. Vald skill används när nästa chattprompt skickas.
 - **Gemensamt minne:** redigera `MEMORY.md` för chatt och skill-körningar.
 - **Inställningsflikar:** AI, Kunskapsbank, Minne och Återställ.
 - **Responsivt gränssnitt:** kompakt meny, ljust/mörkt tema och hjälpguiden i popup.
@@ -186,8 +186,8 @@ På mobil öppnas panelen med **Kontext & skills**.
 - **KB-dokument:** kryssa i de artiklar som ska ingå.
 - **Tillfällig fil:** ladda upp underlag bara för chatten. Filen konverteras
   tillfälligt och läggs inte i inbox eller kunskapsbanken.
-- **Aktiv skill:** välj en skill för att markera dess dokumentförval och köra
-  den direkt. Se avsnittet om skills nedan.
+- **Aktiv skill:** välj en skill för att markera dess dokumentförval. Skillen
+  används när du skickar nästa prompt. Se avsnittet om skills nedan.
 - **Kontextfönster:** uppskattar tokens för underlag, historik, skill och minne.
   Beräkningen använder ungefär fyra tecken per token, med varningsnivåer vid
   75 och 90 procent. Den ändrar inte AI-serverns verkliga kontextstorlek.
@@ -231,7 +231,7 @@ Två redigerbara exempel medföljer:
   personuppgifter och ersätta namn med lekfulla fornnordiska namn.
   **Ett roligt exempel – inte verifierad anonymisering eller avsett för seriös produktion.**
 
-### Dokumentförval och automatisk start
+### Dokumentförval och aktivering i chatten
 
 Använd **Välj dokument** på skillkortet för att spara förval. GUI:t bevarar
 instruktioner och övrig metadata när dokumentvalet ändras.
@@ -249,12 +249,13 @@ document_paths:
 Sökvägarna är relativa till kunskapsbanken. När skillen väljs i chatten:
 
 1. Dess förval ersätter det aktuella KB-dokumentvalet.
-2. Saknade förvalda filer stoppar starten med ett felmeddelande.
-3. Skillen körs direkt; historik, minne och tillfälliga bilagor följer med.
+2. Saknade förvalda filer visas med ett felmeddelande.
+3. Skillen väntar tills du skickar en prompt; historik, minne och tillfälliga
+   bilagor följer då med.
 
 Utan förval används chattens befintliga dokumentmarkeringar. Skillväljaren är
-låst medan ett svar strömmar. Välj **Ingen skill** och sedan skillen igen för
-att köra om den. En vanlig sidladdning startar ingen körning.
+låst medan ett svar strömmar. Att välja eller byta skill startar aldrig en
+körning på egen hand.
 
 Via **Kör skill** får du i stället en separat arbetsvy med förmarkerade filer,
 möjlighet att ändra underlaget och ett valfritt kompletterande uppdrag.

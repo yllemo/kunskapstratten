@@ -32,6 +32,7 @@ class GuiConfig:
     """Inställningar för det lokala webb-GUI:t (bläddra kunskapsbank + skills)."""
     host: str = "127.0.0.1"
     port: int = 5000
+    preview_enabled: bool = False
 
 
 @dataclass
@@ -69,6 +70,7 @@ class Config:
         from dataclasses import replace
         self._initial_ai = replace(self.ai)
         self._initial_title = self.title
+        self._initial_preview_enabled = self.gui.preview_enabled
 
     @property
     def settings_path(self) -> Path:
@@ -86,6 +88,7 @@ class Config:
         if self.settings_path.exists():
             data = json.loads(self.settings_path.read_text(encoding="utf-8"))
             self.title = data.get("title", self.title)
+            self.gui.preview_enabled = bool(data.get("gui", {}).get("preview_enabled", self.gui.preview_enabled))
             for key, value in data.get("ai", {}).items():
                 if key in AIConfig.__dataclass_fields__:
                     setattr(self.ai, key, value)

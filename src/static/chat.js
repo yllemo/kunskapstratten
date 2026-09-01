@@ -163,13 +163,13 @@
     const skill = skillsBySlug[skillSelect.value];
     const status = document.getElementById('chatSkillStatus');
     status.textContent = '';
-    skillDescription.textContent = skill ? skill.description : "Välj en skill för att markera dess dokument och köra den direkt.";
+    skillDescription.textContent = skill ? skill.description : "Välj en skill. Den används först när du skickar nästa prompt.";
     if (!skill || streaming) { renderContextMeter(); return; }
     if (skill.document_error) { status.textContent = skill.document_error; return; }
     const paths = skill.document_paths || [];
     const missing = paths.filter(path => !docsByPath[path]);
     if (missing.length) {
-      status.textContent = 'Körningen startades inte. Saknade dokument: ' + missing.join(', ') + '. Uppdatera skillens dokumentval.';
+      status.textContent = 'Skillen kan inte användas. Saknade dokument: ' + missing.join(', ') + '. Uppdatera skillens dokumentval.';
       return;
     }
     if (paths.length) {
@@ -179,9 +179,7 @@
       renderCtx();
     }
     renderContextMeter();
-    if (chatInput.disabled) { status.textContent = 'Aktivera AI i Inställningar och välj skillen igen för att köra.'; return; }
-    status.textContent = `Kör ${skill.name} med ${selected.size} KB-dokument. Historik, minne och tillfälliga filer följer med.`;
-    send(`Kör skillen ”${skill.name}” enligt dess instruktioner på det valda underlaget.`, true);
+    status.textContent = `${skill.name} är vald med ${selected.size} KB-dokument och används när du skickar nästa prompt.`;
   });
 
   const tempFileInput = document.getElementById("tempFileInput");
@@ -251,7 +249,7 @@
     chatSendBtn.classList.toggle("stop", on);
   }
 
-  async function send(question, autorunSkill = false) {
+  async function send(question) {
     addBubble("user", question);
     history.push({ role: "user", content: question });
     renderContextMeter();
@@ -271,7 +269,6 @@
           context_paths: Array.from(selected),
           temporary_documents: temporaryDocuments,
           skill: skillSelect ? skillSelect.value : "",
-          autorun_skill: autorunSkill,
         }),
         signal: abortCtrl.signal,
       });

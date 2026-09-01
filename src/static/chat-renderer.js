@@ -55,8 +55,15 @@
     }
     bubble.classList.add('chat-markdown');
     bubble.innerHTML = DOMPurify.sanitize(marked.parse(source, {gfm:true, breaks:true}), {
-      USE_PROFILES:{html:true}, FORBID_TAGS:['img','style','input','form','button'],
+      USE_PROFILES:{html:true}, FORBID_TAGS:['img','style','form','button'],
       FORBID_ATTR:['style','id','name']
+    });
+    bubble.querySelectorAll('input').forEach(input => {
+      if (input.type !== 'checkbox') return input.remove();
+      input.disabled = true;
+      input.setAttribute('aria-label', input.checked ? 'Klar' : 'Inte klar');
+      input.closest('li')?.classList.add('task-list-item');
+      input.closest('ul, ol')?.classList.add('task-list');
     });
     bubble.querySelectorAll('a').forEach(link => {
       link.target = '_blank';

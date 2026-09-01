@@ -72,17 +72,19 @@ class LocalStateTests(TestCase):
         self.assertEqual(path.read_text(), 'broken')
 
     def test_settings_roundtrip_memory_and_secret(self):
-        payload = {'title':'Demo1', 'memory':'Kom ihåg Älg.', 'ai':{'api_key':'secret', 'temperature':0.6}}
+        payload = {'title':'Demo1', 'memory':'Kom ihåg Älg.', 'preview_enabled':True, 'ai':{'api_key':'secret', 'temperature':0.6}}
         self.assertEqual(self.client.post('/api/settings', json=payload).status_code, 200)
         response = self.client.get('/api/settings').get_json()
         self.assertNotIn('api_key', response['ai'])
         self.assertTrue(response['ai']['has_api_key'])
         self.assertEqual(self.config.memory(), 'Kom ihåg Älg.')
+        self.assertTrue(response['preview_enabled'])
         self.assertIn('Kom ihåg Älg.', _build_chat_context(self.config, []))
         fresh = Config(self.config.paths, AIConfig(), FrontmatterConfig())
         client = create_app(fresh).test_client()
         self.assertEqual(fresh.ai.api_key, 'secret')
         self.assertEqual(fresh.ai.temperature, 0.6)
+        self.assertTrue(fresh.gui.preview_enabled)
         self.assertIn('Demo1', client.get('/chat').get_data(as_text=True))
         payload['ai'] = {'base_url':'http://other-server:1234/v1'}
         client.post('/api/settings', json=payload)

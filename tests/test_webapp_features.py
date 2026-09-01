@@ -37,9 +37,43 @@ class WebappFeatureTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Hemligt sökord", response.get_data(as_text=True))
 
+    def test_browse_has_clear_primary_actions_and_controls(self):
+        html = self.client.get("/browse").get_data(as_text=True)
+        self.assertIn("Kunskapsbanken", html)
+        self.assertIn("＋ Nytt dokument", html)
+        self.assertIn("⇧ Ladda upp", html)
+        self.assertIn('class="search-primary"', html)
+        self.assertIn('class="browse-quickbar"', html)
+        self.assertIn('class="filter-panel"', html)
+
+    def test_pages_include_svg_favicon(self):
+        html = self.client.get("/browse").get_data(as_text=True)
+        self.assertIn('rel="icon"', html)
+        self.assertIn("favicon.svg", html)
+        response = self.client.get("/static/favicon.svg")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<svg", response.data)
+
     def test_type_filter(self):
         self.assertIn("Alfa", self.client.get("/browse?type=txt").get_data(as_text=True))
         self.assertNotIn("Alfa", self.client.get("/browse?type=pdf").get_data(as_text=True))
+
+    def test_tags_link_to_filtered_browse_from_cards_and_document(self):
+        browse_html = self.client.get("/browse").get_data(as_text=True)
+        self.assertIn("tag=test", browse_html)
+        self.assertIn("Visa artiklar med taggen test", browse_html)
+        doc_html = self.client.get("/doc/alpha.md").get_data(as_text=True)
+        self.assertIn("tag=test", doc_html)
+        self.assertIn("Bläddra bland artiklar med taggen test", doc_html)
+
+    def test_browse_preview_is_available_but_disabled_by_default(self):
+        html = self.client.get("/browse").get_data(as_text=True)
+        self.assertIn('id="articlePreview"', html)
+        self.assertIn('data-enabled="false"', html)
+        response = self.client.get("/api/doc-preview/alpha.md")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["title"], "Alfa")
+        self.assertIn("title: Alfa", response.get_json()["frontmatter"])
 
     def test_create_document_and_reject_duplicate(self):
         data = {"title": "Årlig plan", "folder": "Mina projekt", "tags": "plan, viktigt", "body": "Innehåll"}
@@ -63,10 +97,19 @@ class WebappFeatureTests(unittest.TestCase):
         self.assertEqual(self.client.get("/doc/../config.yaml/download").status_code, 404)
 
     def test_document_renders_frontmatter_and_mermaid_support(self):
+        (self.config.paths.output / "alpha.md").write_text(
+            "---\ntitle: Alfa\n---\n\n- [ ] Öppen\n- [x] Klar\n\n> Viktigt\n\n```mermaid\ngraph TD\nA-->B\n```",
+            encoding="utf-8",
+        )
         response = self.client.get("/doc/alpha.md")
         html = response.get_data(as_text=True)
         self.assertIn("YAML-frontmatter", html)
         self.assertIn("mermaid@latest", html)
+        self.assertIn('class="task-list"', html)
+        self.assertIn('type="checkbox"', html)
+        self.assertIn('checked="checked"', html)
+        self.assertIn("<blockquote>", html)
+        self.assertIn('id="mermaidDialog"', html)
 
     def test_editor_loads_monaco_with_textarea_fallback(self):
         response = self.client.get("/doc/alpha.md/edit")

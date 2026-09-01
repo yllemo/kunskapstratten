@@ -9,7 +9,7 @@
         <option value="">Ingen skill – vanlig chatt</option>
         {% for skill in chat_skills %}<option value="{{ skill.slug }}">{{ skill.name }}</option>{% endfor %}
       </select>
-      <p id="chatSkillDescription" class="chat-sidebar-hint">Välj en skill för att markera dess dokument och köra den direkt. Befintlig chatthistorik och tillfälliga filer följer med.</p>
+      <p id="chatSkillDescription" class="chat-sidebar-hint">Välj en skill för att markera dess dokument. Skillen används först när du skickar nästa prompt. Befintlig chatthistorik och tillfälliga filer följer med.</p>
       <p id="chatSkillStatus" class="chat-sidebar-hint" role="status"></p>
 
       <div class="section-title">Lägg till dokument</div>

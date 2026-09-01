@@ -5,10 +5,10 @@
   <div class="doc-toolbar">
     <a class="back-link" href="{{ url_for('browse') }}">← Bläddra</a>
     <div class="doc-toolbar-actions">
-      <a class="btn-secondary" href="{{ url_for('chat_page', doc=relpath) }}">Chatta om detta</a>
+      <a class="btn-primary button-link" href="{{ url_for('chat_page', doc=relpath) }}">Chatta om detta</a>
+      <a class="btn-secondary" href="{{ url_for('edit_doc', relpath=relpath) }}">Redigera</a>
       <a class="btn-secondary" href="{{ url_for('download_doc', relpath=relpath) }}">Ladda ned .md</a>
       {% if has_original %}<a class="btn-secondary" href="{{ url_for('open_original', relpath=relpath) }}" target="_blank" rel="noopener noreferrer">Öppna original ↗</a>{% endif %}
-      <a class="btn-secondary" href="{{ url_for('edit_doc', relpath=relpath) }}">Redigera</a>
     </div>
   </div>
   <header class="doc-header">
@@ -20,7 +20,7 @@
       {% if doc.source_hash %}<span class="hash">{{ doc.source_hash[:12] }}</span>{% endif %}
     </div>
     {% if doc.tags %}
-    <div class="card-tags">{% for t in doc.tags %}<span class="tag-chip small">#{{ t }}</span>{% endfor %}</div>
+    <div class="card-tags">{% for t in doc.tags %}<a class="tag-chip small" href="{{ url_for('browse', tag=t) }}" aria-label="Bläddra bland artiklar med taggen {{ t }}">#{{ t }}</a>{% endfor %}</div>
     {% endif %}
   </header>
   {% if frontmatter %}
@@ -46,19 +46,44 @@
     {{ html_body | safe }}
   </div>
 </article>
+<dialog id="mermaidDialog" class="mermaid-dialog" aria-labelledby="mermaidDialogTitle">
+  <div class="mermaid-dialog-head">
+    <h2 id="mermaidDialogTitle">Mermaid-diagram</h2>
+    <button type="button" class="mermaid-dialog-close" aria-label="Stäng förstorat diagram">✕</button>
+  </div>
+  <div class="mermaid-dialog-canvas"></div>
+</dialog>
 {% endblock %}
 {% block scripts %}
 <script type="module">
 import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@latest/dist/mermaid.esm.min.mjs";
 
 const diagrams = [];
+const dialog = document.querySelector("#mermaidDialog");
+const dialogCanvas = dialog.querySelector(".mermaid-dialog-canvas");
+dialog.querySelector(".mermaid-dialog-close").addEventListener("click", () => dialog.close());
+dialog.addEventListener("click", event => {
+  if (event.target === dialog) dialog.close();
+});
 document.querySelectorAll("pre > code.language-mermaid").forEach((code, index) => {
   const container = document.createElement("div");
   container.className = "mermaid-diagram";
-  container.setAttribute("role", "img");
-  container.setAttribute("aria-label", `Mermaid-diagram ${index + 1}`);
+  const viewport = document.createElement("div");
+  viewport.className = "mermaid-viewport";
+  viewport.setAttribute("role", "img");
+  viewport.setAttribute("aria-label", `Mermaid-diagram ${index + 1}`);
+  const expand = document.createElement("button");
+  expand.type = "button";
+  expand.className = "mermaid-expand";
+  expand.textContent = "⛶ Förstora";
+  expand.setAttribute("aria-label", `Visa Mermaid-diagram ${index + 1} i maximerat läge`);
+  expand.addEventListener("click", () => {
+    dialogCanvas.replaceChildren(viewport.querySelector("svg").cloneNode(true));
+    dialog.showModal();
+  });
+  container.append(expand, viewport);
   code.parentElement.replaceWith(container);
-  diagrams.push({ container, source: code.textContent, index });
+  diagrams.push({ container, viewport, expand, source: code.textContent, index });
 });
 
 async function renderDiagrams() {
@@ -74,10 +99,12 @@ async function renderDiagrams() {
       diagram.container.removeAttribute("data-error");
       const id = `mermaid-${diagram.index}-${Date.now()}`;
       const { svg } = await mermaid.render(id, diagram.source);
-      diagram.container.innerHTML = svg;
+      diagram.viewport.innerHTML = svg;
+      diagram.expand.hidden = false;
     } catch (error) {
       diagram.container.setAttribute("data-error", "true");
-      diagram.container.textContent = `Kunde inte rendera Mermaid-diagrammet: ${error.message || error}`;
+      diagram.expand.hidden = true;
+      diagram.viewport.textContent = `Kunde inte rendera Mermaid-diagrammet: ${error.message || error}`;
     }
   }
 }

@@ -38,7 +38,10 @@
       <summary>Filtyper som stöds</summary>
       <div>{% for extension in supported %}<code>{{ extension }}</code>{% endfor %}</div>
     </details>
-    <button class="btn-primary" type="submit">Ladda upp filer</button>
+    <div class="form-actions">
+      <a class="btn-secondary button-link" href="{{ url_for('browse') }}">Avbryt</a>
+      <button class="btn-primary" type="submit">Ladda upp filer</button>
+    </div>
   </form>
 </section>
 {% endblock %}

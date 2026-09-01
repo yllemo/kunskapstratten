@@ -12,8 +12,8 @@
     <label>Taggar <input name="tags" value="{{ form.get('tags', '') if form else '' }}" placeholder="planering, möte, beslut"></label>
     <label>Innehåll <textarea name="body" spellcheck="true" placeholder="# Rubrik&#10;&#10;Skriv i Markdown…">{{ form.get('body', '') if form else '' }}</textarea></label>
     <div class="edit-actions">
-      <button class="btn-primary" type="submit">Skapa dokument</button>
       <a class="btn-secondary" href="{{ url_for('browse') }}">Avbryt</a>
+      <button class="btn-primary" type="submit">Skapa dokument</button>
     </div>
   </form>
 </section>

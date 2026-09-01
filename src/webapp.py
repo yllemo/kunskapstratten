@@ -11,10 +11,13 @@ import logging
 import re
 import unicodedata
 import tempfile
+import xml.etree.ElementTree as etree
 from datetime import datetime, timezone
 from pathlib import Path
 
 import markdown as md_lib
+from markdown.extensions import Extension
+from markdown.treeprocessors import Treeprocessor
 import yaml
 from flask import (
     Flask, Response, jsonify, redirect, render_template, request, send_file,
@@ -29,6 +32,39 @@ from .citations import source_id, original_path, sources_for, citation_footer, C
 from .docstore import all_tags, list_documents, load_document, parse_markdown_file
 from .pipeline import Pipeline
 from .skillbuilder import create_custom_skill, list_custom_skills, validate_skill_documents
+
+
+class _TaskListTreeprocessor(Treeprocessor):
+    """Turn GFM-style list markers into accessible, read-only checkboxes."""
+
+    def run(self, root):
+        for list_element in root.iter():
+            if list_element.tag not in {"ul", "ol"}:
+                continue
+            has_tasks = False
+            for item in list_element.findall("li"):
+                text = item.text or ""
+                marker = text[:3].lower()
+                if marker not in {"[ ]", "[x]"}:
+                    continue
+                has_tasks = True
+                item.set("class", "task-list-item")
+                item.text = None
+                checkbox = etree.Element("input")
+                checkbox.set("type", "checkbox")
+                checkbox.set("disabled", "disabled")
+                checkbox.set("aria-label", "Klar" if marker == "[x]" else "Inte klar")
+                if marker == "[x]":
+                    checkbox.set("checked", "checked")
+                checkbox.tail = text[3:].lstrip()
+                item.insert(0, checkbox)
+            if has_tasks:
+                list_element.set("class", "task-list")
+
+
+class _TaskListExtension(Extension):
+    def extendMarkdown(self, markdown):
+        markdown.treeprocessors.register(_TaskListTreeprocessor(markdown), "task-list", 15)
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +257,7 @@ def create_app(config: Config) -> Flask:
 
         doc = load_document(config.paths.output.resolve(), full_path)
         frontmatter, _ = parse_markdown_file(full_path)
-        html_body = md_lib.markdown(doc.body, extensions=["fenced_code", "tables"])
+        html_body = md_lib.markdown(doc.body, extensions=["fenced_code", "tables", _TaskListExtension()])
         return render_template(
             "doc.html",
             doc=doc,
@@ -230,6 +266,25 @@ def create_app(config: Config) -> Flask:
             frontmatter=frontmatter,
             has_original=original_path(config, doc) is not None,
         )
+
+    @app.route("/api/doc-preview/<path:relpath>")
+    def doc_preview(relpath):
+        full_path = _resolve_doc_path(relpath)
+        if full_path is None:
+            return jsonify({"error": "Dokumentet hittades inte."}), 404
+        doc = load_document(config.paths.output.resolve(), full_path)
+        frontmatter, _ = parse_markdown_file(full_path)
+        limit = 6000
+        return jsonify({
+            "title": doc.title, "rel_path": doc.rel_path, "summary": doc.summary,
+            "tags": doc.tags, "source_type": doc.source_type or "md",
+            "modified": datetime.fromtimestamp(doc.modified_at).strftime("%Y-%m-%d %H:%M"),
+            "body": doc.body[:limit], "truncated": len(doc.body) > limit,
+            "frontmatter": yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).strip() if frontmatter else "",
+            "urls": {"open": url_for("view_doc", relpath=doc.rel_path),
+                     "edit": url_for("edit_doc", relpath=doc.rel_path),
+                     "chat": url_for("chat_page", doc=doc.rel_path)},
+        })
 
     @app.route("/doc/<path:relpath>/original")
     def open_original(relpath):

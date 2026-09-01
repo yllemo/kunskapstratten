@@ -165,6 +165,7 @@ def register_reset(app, config):
                 path.rmdir()
             config.ai = replace(config._initial_ai)
             config.title = config._initial_title
+            config.gui.preview_enabled = config._initial_preview_enabled
             _cached_document.cache_clear()
             return jsonify(ok=True, removed=removed)
         except (ValueError, OSError) as exc:

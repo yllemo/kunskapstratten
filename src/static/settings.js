@@ -99,7 +99,7 @@
     return result;
   }
   function values() {
-    return {title:$('kbTitle').value, memory:$('kbMemory').value, ai:{provider, enabled:$('aiEnabled').checked, base_url:$('aiBaseUrl').value, api_key:$('aiApiKey').value, clear_api_key:$('clearApiKey').checked, model:$('aiModel').value, temperature:Number($('aiTemperature').value), context_window:Number($('aiContextWindow').value), system_prompt:$('aiSystemPrompt').value}};
+    return {title:$('kbTitle').value, memory:$('kbMemory').value, preview_enabled:$('previewEnabled').checked, ai:{provider, enabled:$('aiEnabled').checked, base_url:$('aiBaseUrl').value, api_key:$('aiApiKey').value, clear_api_key:$('clearApiKey').checked, model:$('aiModel').value, temperature:Number($('aiTemperature').value), context_window:Number($('aiContextWindow').value), system_prompt:$('aiSystemPrompt').value}};
   }
   $('settingsBtn').onclick = async () => {
     clearReset();
@@ -110,6 +110,7 @@
       const data = await api('/api/settings');
       provider = data.ai.provider;
       $('kbTitle').value = data.title;
+      $('previewEnabled').checked = data.preview_enabled;
       $('kbMemory').value = data.memory;
       $('aiEnabled').checked = data.ai.enabled;
       $('aiBaseUrl').value = data.ai.base_url;

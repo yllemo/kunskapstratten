@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kunskapstratten">
+  <rect width="64" height="64" rx="14" fill="#0077bc"/>
+  <path d="M14 16h36L37 32.5V46l-10 5V32.5L14 16Z" fill="#fff"/>
+  <path d="M22 16h20" fill="none" stroke="#bfe7f5" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="10" r="3" fill="#f2a900"/>
+</svg>
